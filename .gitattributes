@@ -1,0 +1,17 @@
+# Keep repository text files stable across Linux, macOS, and Windows checkouts.
+* text=auto eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# Make binary model/data/media formats explicit so Git never normalizes them.
+*.gif binary
+*.jpeg binary
+*.jpg binary
+*.npy binary
+*.npz binary
+*.pdf binary
+*.png binary
+*.pt binary
+*.pth binary

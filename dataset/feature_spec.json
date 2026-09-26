@@ -1,0 +1,1175 @@
+{
+  "schema_version": "civic-static-features-v4",
+  "selected_strength_convention": "percentile",
+  "selection_rule": "Use absolute soft-saturation iff its cross-city target coverage is no lower and maximum target reuse no higher than the within-city percentile control; otherwise use percentile.",
+  "within_city_percentile": "For each strength column, keep zero at zero and map nonzero average ranks to (rank - 0.5) / nonzero_count; this preserves rank order without producing artificial exact-one values.",
+  "overture": {
+    "release": "2026-08-19.0",
+    "confidence_min": 0.7,
+    "operating_status_filter": "exclude permanently_closed",
+    "category_count": 13,
+    "deduplication": "round(lat,5), round(lon,5), lower(primary_name); keep highest confidence then id",
+    "city_reports": {
+      "CA": {
+        "retained_after_dedup": 1388810,
+        "nonzero_grids": 104560
+      },
+      "NYC": {
+        "retained_after_dedup": 375452,
+        "nonzero_grids": 7358
+      },
+      "PARIS": {
+        "retained_after_dedup": 92640,
+        "nonzero_grids": 707
+      }
+    }
+  },
+  "poi_proportions": {
+    "alpha": 1.0,
+    "pooled_prior": [
+      0.15686665209041725,
+      0.2669618536680988,
+      0.06946300881791284,
+      0.12107047113956472,
+      0.054853190959996814,
+      0.03406911080929419,
+      0.14976073050704883,
+      0.01932573716868203,
+      0.031188506447836235,
+      0.04091707586076163,
+      0.036230775775996794,
+      0.004839242997207176,
+      0.014453643757182662
+    ],
+    "zero_policy": "poi_count_raw == 0 => all 13 proportions are exactly zero"
+  },
+  "soft_saturation": {
+    "formula": "log1p(v) / (log1p(v) + log1p(REF))",
+    "ref_rule": "frozen pooled nonzero-grid p95 under this geometry",
+    "refs": {
+      "poi_density_level": 296.0000000001845,
+      "bus_stations": 168.85238095238086,
+      "total_frequency": 1046.0,
+      "metro_frequency": 1738.0
+    }
+  },
+  "transport_semantics": {
+    "total_stations": "exp(-nearest_station_m / 1000); nearest all-mode station proximity",
+    "metro_stations": "exp(-nearest_rail_m / 1000); nearest rail station proximity",
+    "bus_stations": "total_departures / total_stations, soft-saturated",
+    "total_frequency": "representative-Wednesday all-mode departures, soft-saturated absolute value",
+    "metro_frequency": "representative-Wednesday rail departures, soft-saturated absolute value",
+    "bus_frequency": "rail_departures / total_departures; zero when total is zero"
+  },
+  "boundary_density_semantics": {
+    "formula": "poi_density_raw = poi_count_raw / actual_clipped_grid_area_km2",
+    "applies_to": "all emitted cells, including bbox-clipped boundary cells",
+    "verification_columns_in_provenance": [
+      "poi_count_raw",
+      "grid_area_km2",
+      "poi_density_raw"
+    ]
+  },
+  "distance_decay_m": 1000.0,
+  "gtfs": {
+    "snapshot_date": "2026-08-25",
+    "route_type_rail": [
+      0,
+      1,
+      2,
+      12
+    ],
+    "route_type_bus": [
+      3,
+      11
+    ],
+    "parent_station_rollup": true,
+    "feed_prefix_station_ids": true,
+    "feeds": {
+      "CA": [
+        {
+          "source_id": "mdb-100",
+          "url": "https://files.mobilitydatabase.org/mdb-100/latest.zip",
+          "sha256": "bdb366055e00699616072a6040fc0289290227a82a7103dcfb889d19cda15c66",
+          "snapshot_date": "2026-08-25",
+          "status": "skipped_missing_core_file",
+          "representative_wednesday": null
+        },
+        {
+          "source_id": "mdb-101",
+          "url": "https://files.mobilitydatabase.org/mdb-101/latest.zip",
+          "sha256": "4f899ea424808dc99787f908dbf2b2f0a1c4d6d19c8e57c7ace55859c3bd43cb",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-104",
+          "url": "https://files.mobilitydatabase.org/mdb-104/latest.zip",
+          "sha256": "a36a65deb3c171a83b069951756ea5d9022630157517ece2ad0dbf20656fa7f6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-106",
+          "url": "https://files.mobilitydatabase.org/mdb-106/latest.zip",
+          "sha256": "1c5aaa0f6c82ce6c1870e87b4370e4e82df135cabb519bc9f4f9015061f56caf",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-107",
+          "url": "https://files.mobilitydatabase.org/mdb-107/latest.zip",
+          "sha256": "a6205f72f612da62923ca4cdeec6fad7a2c204605370a66d419f65a5572d9d75",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-11",
+          "url": "https://files.mobilitydatabase.org/mdb-11/latest.zip",
+          "sha256": "3e065a1ee079887af83436e5c6f4857192bcf89dfee0a54e6b13403e0db3ca90",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-11-25"
+        },
+        {
+          "source_id": "mdb-1198",
+          "url": "https://files.mobilitydatabase.org/mdb-1198/latest.zip",
+          "sha256": "7d68406f14ea2a3a143aab3900cd521ff75e557d45273560d1e39a4a103e768d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-1210",
+          "url": "https://files.mobilitydatabase.org/mdb-1210/latest.zip",
+          "sha256": "b826a7a084b11f2454036ef0e76374766430ab62321b8a0d965daea005794f1e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-1246",
+          "url": "https://files.mobilitydatabase.org/mdb-1246/latest.zip",
+          "sha256": "12d3aa31357051e804ac8ff94c639f27251edea9865442d0f7576b52fad10c6a",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-23"
+        },
+        {
+          "source_id": "mdb-1288",
+          "url": "https://files.mobilitydatabase.org/mdb-1288/latest.zip",
+          "sha256": "78cd0b8ce17eb602941e38df5b2c11b2f87126ddd2769b9f53c1355b47302df2",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-13",
+          "url": "https://files.mobilitydatabase.org/mdb-13/latest.zip",
+          "sha256": "51e30b298fefb00c9d31c497060069d5e9e3f3be6e37aa214739a420f6f4181c",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-30"
+        },
+        {
+          "source_id": "mdb-15",
+          "url": "https://files.mobilitydatabase.org/mdb-15/latest.zip",
+          "sha256": "4351011846ab6263311c4364560fcfba85a17c564226acc632308e416db9fc42",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-16",
+          "url": "https://files.mobilitydatabase.org/mdb-16/latest.zip",
+          "sha256": "66232acf560424b4267af78860b255fb266e54523080ebc5b87c5427bcae7cb8",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-1999",
+          "url": "https://files.mobilitydatabase.org/mdb-1999/latest.zip",
+          "sha256": "18bf169ec858a01092693628df4689c98db309f233df32d81be19ba0b522af63",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2149",
+          "url": "https://files.mobilitydatabase.org/mdb-2149/latest.zip",
+          "sha256": "f30d270bea4f0a09fe1af5441c07097cc692c1722fab2f90e905574307440edd",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2172",
+          "url": "https://files.mobilitydatabase.org/mdb-2172/latest.zip",
+          "sha256": "5d3b4b70a8e6d69adffb8e278608f1def7cd047b221153691ddb839e4d8fcbd2",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2174",
+          "url": "https://files.mobilitydatabase.org/mdb-2174/latest.zip",
+          "sha256": "dd770c124c4cdd96b5e79bf4a29e1b061a08d2d8e9625fefa9a51034b74ea0f7",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2180",
+          "url": "https://files.mobilitydatabase.org/mdb-2180/latest.zip",
+          "sha256": "b934e4df11aff0092a8aba49eccdcc001b73662ca0c8da9aff257b16f5f74a73",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2190",
+          "url": "https://files.mobilitydatabase.org/mdb-2190/latest.zip",
+          "sha256": "37aafd66b9877950855ba22265336efe0928cb50d19f5323ccb44c46837a35d0",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-220",
+          "url": "https://files.mobilitydatabase.org/mdb-220/latest.zip",
+          "sha256": "55bd4f3c57238dc0f9c1f95423aef66a831917a8cacd34521dfad000a2f8c867",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2201",
+          "url": "https://files.mobilitydatabase.org/mdb-2201/latest.zip",
+          "sha256": "926a733ad4ac081987960e4b8ee20dd78da8e477667d770a344725bcacdffe71",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2202",
+          "url": "https://files.mobilitydatabase.org/mdb-2202/latest.zip",
+          "sha256": "3041c4c5b74fde5d3c9940d0dcfc35f701bd7b306c0bee94a789bbc7b0bd82f5",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2204",
+          "url": "https://files.mobilitydatabase.org/mdb-2204/latest.zip",
+          "sha256": "040ce518b3a94299196d562a361a03f5772c3772dd05e55800e3018448f7e9e6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2224",
+          "url": "https://files.mobilitydatabase.org/mdb-2224/latest.zip",
+          "sha256": "0edfb39b71c51ff52b668eb6aa96e4a77a6c2164d123f74839a1e3f17ed38ebf",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2243",
+          "url": "https://files.mobilitydatabase.org/mdb-2243/latest.zip",
+          "sha256": "795eb701c8318a9774d67a881a9ba4ae9140d98e5e7119ea75817d4f43fd35a7",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2247",
+          "url": "https://files.mobilitydatabase.org/mdb-2247/latest.zip",
+          "sha256": "5dc4950fbb6dee3d4992d35b572bfe0009fa797acfc23286bd55e90bc70565fb",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2270",
+          "url": "https://files.mobilitydatabase.org/mdb-2270/latest.zip",
+          "sha256": "9f3d2b99e008d711d1076f90530ba43ba1267f369be6223d8605af95a346c048",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2272",
+          "url": "https://files.mobilitydatabase.org/mdb-2272/latest.zip",
+          "sha256": "ec5d21bf7de55ca2a0357b35754433508cb9f91fbefeacbe82ffc5e5e9cd5b32",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-11-11"
+        },
+        {
+          "source_id": "mdb-2273",
+          "url": "https://files.mobilitydatabase.org/mdb-2273/latest.zip",
+          "sha256": "d4cb55d5ad770bd5ac3be61a75b33ac0cce632d53e79266f7558e736bd9d84fa",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2275",
+          "url": "https://files.mobilitydatabase.org/mdb-2275/latest.zip",
+          "sha256": "fcc70bb86c6c154028a2336076b8e7a8bc1e9d48c3910de6997adc9f5a13d02a",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2295",
+          "url": "https://files.mobilitydatabase.org/mdb-2295/latest.zip",
+          "sha256": "37fbc0ba16a57d231eba7b605e319078d4c631f6d83826430c1f238b7ad565a6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2328",
+          "url": "https://files.mobilitydatabase.org/mdb-2328/latest.zip",
+          "sha256": "2d564452995739dd65212347cf0e397ede40b79fba9e590218cf54ee4dcde75e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-236",
+          "url": "https://files.mobilitydatabase.org/mdb-236/latest.zip",
+          "sha256": "064d6d274f1dccce7bc2420916a3e8affcc7ed8b9d1b4489e8cf02ea3100e830",
+          "snapshot_date": "2026-08-25",
+          "status": "skipped_no_active_wednesday",
+          "representative_wednesday": null
+        },
+        {
+          "source_id": "mdb-2361",
+          "url": "https://files.mobilitydatabase.org/mdb-2361/latest.zip",
+          "sha256": "8b4a5788773745d332f7f11e690b5d9c91fa9d35b8ac0508e34a46b787d2f869",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2362",
+          "url": "https://files.mobilitydatabase.org/mdb-2362/latest.zip",
+          "sha256": "abd2cff7ce9477e4b7295e7f52ea5e6d6ea01787edebcc720a104e1e80d102a0",
+          "snapshot_date": "2026-08-25",
+          "status": "skipped_no_active_wednesday",
+          "representative_wednesday": null
+        },
+        {
+          "source_id": "mdb-2394",
+          "url": "https://files.mobilitydatabase.org/mdb-2394/latest.zip",
+          "sha256": "c6ae5379ad9e4df11b1046791201e4c3c681ef0c9e7ec123c6d5a97433dedfde",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2421",
+          "url": "https://files.mobilitydatabase.org/mdb-2421/latest.zip",
+          "sha256": "0e6236ffcb956ebc5c2a92fb1ffba978e7998ba4b97dce9b4075961952471609",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2425",
+          "url": "https://files.mobilitydatabase.org/mdb-2425/latest.zip",
+          "sha256": "58ac9b44d59b763db332c6311a8af3382f99d40c02dcdd51b6a294276119e5a8",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-25",
+          "url": "https://files.mobilitydatabase.org/mdb-25/latest.zip",
+          "sha256": "0e8afe92596af7739434a89fb67025ec7855ff46f1b5d8f1ebc8ee15ac0037ff",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2667",
+          "url": "https://files.mobilitydatabase.org/mdb-2667/latest.zip",
+          "sha256": "a72093fc03fcdba0b56a657e1be096fc9f2e93926c38d90f08661df246cc0753",
+          "snapshot_date": "2026-08-25",
+          "status": "skipped_no_active_wednesday",
+          "representative_wednesday": null
+        },
+        {
+          "source_id": "mdb-28",
+          "url": "https://files.mobilitydatabase.org/mdb-28/latest.zip",
+          "sha256": "11afef8fb98734fbf5eba88250bbe875e1fed97ac5f929bed88befb8a4dab39d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2880",
+          "url": "https://files.mobilitydatabase.org/mdb-2880/latest.zip",
+          "sha256": "930ffee14aa5fc4554e2872d5798e309873ec8510a33113720c5e75270e9334f",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-02"
+        },
+        {
+          "source_id": "mdb-2883",
+          "url": "https://files.mobilitydatabase.org/mdb-2883/latest.zip",
+          "sha256": "b24286b4158e64fda9af24c359d00c380aa98b1a60a28ea3b37ea941102ffe89",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2886",
+          "url": "https://files.mobilitydatabase.org/mdb-2886/latest.zip",
+          "sha256": "69572de4529dd3b7848e11258df5ea2aef1b36611d953d84fe0170075dbab910",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-2894",
+          "url": "https://files.mobilitydatabase.org/mdb-2894/latest.zip",
+          "sha256": "7b8af8e8ff7fbcf9c9a59843701c782fd448302f4b59b110c444e4e5271388b0",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-29",
+          "url": "https://files.mobilitydatabase.org/mdb-29/latest.zip",
+          "sha256": "93275d4b50eb22afcfe64f3fe8fd918dfb5fa43600be2e267658e5f2719eda33",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-12-09"
+        },
+        {
+          "source_id": "mdb-2937",
+          "url": "https://files.mobilitydatabase.org/mdb-2937/latest.zip",
+          "sha256": "fb1b4ee508d8975aefec2375852fd7b88915b8a44f028ec7dd7439b2395b2478",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-30",
+          "url": "https://files.mobilitydatabase.org/mdb-30/latest.zip",
+          "sha256": "242f49444f8da04d08cb7d864cbcb96492f2527e44fcb76f0ee8cb9730339eef",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-02"
+        },
+        {
+          "source_id": "mdb-3031",
+          "url": "https://files.mobilitydatabase.org/mdb-3031/latest.zip",
+          "sha256": "df4e904c78b0cbc446ad59732e0b7d59347a600cec7bb6c5b8c4c60166d85934",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3032",
+          "url": "https://files.mobilitydatabase.org/mdb-3032/latest.zip",
+          "sha256": "4653e22dd6688465b7c486c7bd45ee6c92e7e3d36581787340da1dd56601cd60",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3094",
+          "url": "https://files.mobilitydatabase.org/mdb-3094/latest.zip",
+          "sha256": "c9b6c17c5fd7cb17a7b4182032d5cf6bb0582530c00e49954f2db8b976e0a10d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3095",
+          "url": "https://files.mobilitydatabase.org/mdb-3095/latest.zip",
+          "sha256": "7eeff2a425f23159140c8e63bf65867b95a1f1deca79971f1c192713be088f1d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3096",
+          "url": "https://files.mobilitydatabase.org/mdb-3096/latest.zip",
+          "sha256": "58a51ddf95748577e6540db0e27d7761d1bf98dfab41878db120f2edeb357f82",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3098",
+          "url": "https://files.mobilitydatabase.org/mdb-3098/latest.zip",
+          "sha256": "3142ea44cb499da14ac116d3ce74401a514000fdf234f33b3853033f483b5ce6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3099",
+          "url": "https://files.mobilitydatabase.org/mdb-3099/latest.zip",
+          "sha256": "3d0c58271018a0465b9f115e0f9b068a94ca1f8fbb9f0d3b0cc6848d4c5eb1eb",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-05-27"
+        },
+        {
+          "source_id": "mdb-3117",
+          "url": "https://files.mobilitydatabase.org/mdb-3117/latest.zip",
+          "sha256": "215b74208f8d288a8934af86d99c0855b0c7c70ea3253fe29e44eff97d8a0e25",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3143",
+          "url": "https://files.mobilitydatabase.org/mdb-3143/latest.zip",
+          "sha256": "85405a4633be7f8823fbd0809af390f2b430c3b27f71e9c2c3458e9cbd94b292",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-320",
+          "url": "https://files.mobilitydatabase.org/mdb-320/latest.zip",
+          "sha256": "492f723e3f2a63de2303181bb2a534e10dd7969629dcda71d43a0ccae229fcbc",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3206",
+          "url": "https://files.mobilitydatabase.org/mdb-3206/latest.zip",
+          "sha256": "eb226f6cd666f8640a4a97feb40791b68b185687d6595ab231214d9d406331c9",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-3208",
+          "url": "https://files.mobilitydatabase.org/mdb-3208/latest.zip",
+          "sha256": "fffa36c288326c9e427617c3618fbcb5ed8a92323b64bf5df9cb8364c614bd2e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-35",
+          "url": "https://files.mobilitydatabase.org/mdb-35/latest.zip",
+          "sha256": "a04579eda97b4e433ba41524cf513aeae931e4286a98505de2e80aa8c0e74db1",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-36",
+          "url": "https://files.mobilitydatabase.org/mdb-36/latest.zip",
+          "sha256": "3e0dfe55eb032521eaf684af922a4ccbf86387700f331fe0b5ce661f6190d24d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-37",
+          "url": "https://files.mobilitydatabase.org/mdb-37/latest.zip",
+          "sha256": "715a2c0b0781569d431ef449ad88fe352e887e57271f28219b222267b5999adf",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-40",
+          "url": "https://files.mobilitydatabase.org/mdb-40/latest.zip",
+          "sha256": "63049f6d399ce934106bbf848ac1ff6ac52125a5e4fad50735bf347c3f7b1213",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-41",
+          "url": "https://files.mobilitydatabase.org/mdb-41/latest.zip",
+          "sha256": "df66772e2361ffa0b57d673cbad801fa06fceb9f5ef62f7fb6a3ef46f2528ccb",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-43",
+          "url": "https://files.mobilitydatabase.org/mdb-43/latest.zip",
+          "sha256": "dbd2685b9f48facd5ce4ef014b8c486c7546576d36669c7b59991268b32168a8",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-44",
+          "url": "https://files.mobilitydatabase.org/mdb-44/latest.zip",
+          "sha256": "89306420a5b2b4541a701c8f8b3fd0ca99b274b0deaa2a674d144cb6edfc49bc",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-05-27"
+        },
+        {
+          "source_id": "mdb-46",
+          "url": "https://files.mobilitydatabase.org/mdb-46/latest.zip",
+          "sha256": "4a2e0b32ec2ada4aa8f7c8b6aca4ff003780f45c8a086bb2b565a1e5a8fe0b3b",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-47",
+          "url": "https://files.mobilitydatabase.org/mdb-47/latest.zip",
+          "sha256": "f5c962a6114a3a04c01c81f4d4cbd9fba64f87681934cc37fc5db28d14cad33e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-51",
+          "url": "https://files.mobilitydatabase.org/mdb-51/latest.zip",
+          "sha256": "a8ea00a136be9a572faafa5cb03e0745c909e0266d7f62ca810f85529056c75c",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-53",
+          "url": "https://files.mobilitydatabase.org/mdb-53/latest.zip",
+          "sha256": "affdc4d70cac01f71e54f049c754ba36824a885edcdef2ef8b024820c9e93080",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-54",
+          "url": "https://files.mobilitydatabase.org/mdb-54/latest.zip",
+          "sha256": "786de3fea43ef033dbc9977d1617032a0ecff706e1621a6c9d5816a65e6d862a",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-56",
+          "url": "https://files.mobilitydatabase.org/mdb-56/latest.zip",
+          "sha256": "523fb0c449dd0e5aba266ce3bc39590c6892827ae3eeb937c86565bb1fb3c8f9",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-57",
+          "url": "https://files.mobilitydatabase.org/mdb-57/latest.zip",
+          "sha256": "5f68e454f2b74c22481d8f8c21001e4f873039822d8b36dedcccf93d7d84cbf2",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-23"
+        },
+        {
+          "source_id": "mdb-572",
+          "url": "https://files.mobilitydatabase.org/mdb-572/latest.zip",
+          "sha256": "3a532a86dea868945c67e97d7c94ded7fde0c23dbbb2703e7dd729935f9400ea",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-578",
+          "url": "https://files.mobilitydatabase.org/mdb-578/latest.zip",
+          "sha256": "92bf74967ebc6f38106d601dc09bab1e360d4d3d367d31f2719694450196117f",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-579",
+          "url": "https://files.mobilitydatabase.org/mdb-579/latest.zip",
+          "sha256": "32af3c7b95d76798c14358639dceee87c827485ffd59e1416c3ded3853e290d4",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-58",
+          "url": "https://files.mobilitydatabase.org/mdb-58/latest.zip",
+          "sha256": "770c8af7c3dcc89befb50c12788c71327df48c79f6e77cb856078868f8c29d83",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-583",
+          "url": "https://files.mobilitydatabase.org/mdb-583/latest.zip",
+          "sha256": "5d834b9c71567e11e55596df8bd506f4676a19180a3c5f8c2f106dbef55f368e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-59",
+          "url": "https://files.mobilitydatabase.org/mdb-59/latest.zip",
+          "sha256": "bf9143be189a453bbe0d68fdea0899d750979ff6be8f37b6e77e11a147d64ac3",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-61",
+          "url": "https://files.mobilitydatabase.org/mdb-61/latest.zip",
+          "sha256": "4323fba7b070355b954778615b33eeb12190ab831c78179420c03d99cb055b95",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-617",
+          "url": "https://files.mobilitydatabase.org/mdb-617/latest.zip",
+          "sha256": "f61b4a18d5a80399e336943028b4106a8fa3b9153bcce722a233e4a90ad1197f",
+          "snapshot_date": "2026-08-25",
+          "status": "skipped_missing_core_file",
+          "representative_wednesday": null
+        },
+        {
+          "source_id": "mdb-619",
+          "url": "https://files.mobilitydatabase.org/mdb-619/latest.zip",
+          "sha256": "549772c7205e7de83974ae335831cb22bc13e0f0357338a99bbf06e324f499df",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-646",
+          "url": "https://files.mobilitydatabase.org/mdb-646/latest.zip",
+          "sha256": "87f034ba218ef7039ea649f5241d4313de01bd7672070a16141470cdcbb6c1ac",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-65",
+          "url": "https://files.mobilitydatabase.org/mdb-65/latest.zip",
+          "sha256": "00ea1418adb93522c9f62a2770ce1baef1b85bda31ac77ac41c2136a74ef3e40",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-67",
+          "url": "https://files.mobilitydatabase.org/mdb-67/latest.zip",
+          "sha256": "192c709effa113f186891ec85a190f43b708e05116b148b1a65744c4fbdd13da",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-68",
+          "url": "https://files.mobilitydatabase.org/mdb-68/latest.zip",
+          "sha256": "9b38f267b5404579fec58117e5f3cc1838d10c205a37ca3259756c18805bdf83",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-69",
+          "url": "https://files.mobilitydatabase.org/mdb-69/latest.zip",
+          "sha256": "08c290ef9a8289849a8c9e7734f1c8372734c33e2481642a862738ed74dfed16",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-70",
+          "url": "https://files.mobilitydatabase.org/mdb-70/latest.zip",
+          "sha256": "17a0c111be4d24cc4d5c23382e523ef2c4a6cef37f19ecd7253d1d8e3827bcbd",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-74",
+          "url": "https://files.mobilitydatabase.org/mdb-74/latest.zip",
+          "sha256": "712d6e08abb213886949271bd454407561746f63059ffee0af734bf6f0f2e6e6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-75",
+          "url": "https://files.mobilitydatabase.org/mdb-75/latest.zip",
+          "sha256": "a246b2e2619ea96bb25a05ad18a9c34c8227de0134d6df70a58a5b692470654e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-77",
+          "url": "https://files.mobilitydatabase.org/mdb-77/latest.zip",
+          "sha256": "256c8f57c4db60096642a8a73aa3233667d0e50d7bd7afe9662e127defe2cba8",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-06-03"
+        },
+        {
+          "source_id": "mdb-78",
+          "url": "https://files.mobilitydatabase.org/mdb-78/latest.zip",
+          "sha256": "59beff5bc423746e1f79f7d8c303c3ff0be733a172e6560a3a5d39a666ed75ea",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-79",
+          "url": "https://files.mobilitydatabase.org/mdb-79/latest.zip",
+          "sha256": "ea1ee93b472bde68b62f28e157c39cd23bde73b2268539fe3e0cc1c56f9571e3",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-01-28"
+        },
+        {
+          "source_id": "mdb-80",
+          "url": "https://files.mobilitydatabase.org/mdb-80/latest.zip",
+          "sha256": "7a634ad3ce78ca4c0c9b09c8ce454c6001c42ea31413fd94b2302999d6172caa",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-813",
+          "url": "https://files.mobilitydatabase.org/mdb-813/latest.zip",
+          "sha256": "7387ff77c48180b7f01aa301d1ded7f7fab3a7b5eb90cf83a0681ab18e5b0aa6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-82",
+          "url": "https://files.mobilitydatabase.org/mdb-82/latest.zip",
+          "sha256": "feedadf1143419db283a9d403c2921061f03726614de60ba60b94beb48b195d4",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-83",
+          "url": "https://files.mobilitydatabase.org/mdb-83/latest.zip",
+          "sha256": "1b02f8658d4821882b1e57bb02f892b2b427dc062693be9256899636448f49c9",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-85",
+          "url": "https://files.mobilitydatabase.org/mdb-85/latest.zip",
+          "sha256": "f217283505b5aa8d55ab7fc7272063b4de8c0e255dbaf4edb0158b6c1118f07a",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-886",
+          "url": "https://files.mobilitydatabase.org/mdb-886/latest.zip",
+          "sha256": "f6b2a9ec8d0a80e2c9581e529dab6be9a4406c4ea09a939dd1d22139f8f3f613",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-897",
+          "url": "https://files.mobilitydatabase.org/mdb-897/latest.zip",
+          "sha256": "c9644d27c7e535add0048a9bfb8b7e3595cb48d1584b5040ea31613ee1b8d84b",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-90",
+          "url": "https://files.mobilitydatabase.org/mdb-90/latest.zip",
+          "sha256": "4f76287f8c05ae0f5e2589d665d7b9a0419c2e7267d7b78ef5634f7752d7783d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-92",
+          "url": "https://files.mobilitydatabase.org/mdb-92/latest.zip",
+          "sha256": "7cea4d5f3ca93cf84a00dfda6e4df91946ad4d58f8e4150582d12b58e1eadc09",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-93",
+          "url": "https://files.mobilitydatabase.org/mdb-93/latest.zip",
+          "sha256": "a2fc81deb3d006a91c7353d36c0e8921457b79c54ffa6a5299383a1c66ec17de",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-94",
+          "url": "https://files.mobilitydatabase.org/mdb-94/latest.zip",
+          "sha256": "742193c1d4d8f02e41fd6fd15a9c07f79e450c28e1f37a2396e9a3ba0cdf94ae",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-96",
+          "url": "https://files.mobilitydatabase.org/mdb-96/latest.zip",
+          "sha256": "d793a08b962f168f33c0e108bc41bf61b9b619b6e4ef72289a9828a28d97932b",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-97",
+          "url": "https://files.mobilitydatabase.org/mdb-97/latest.zip",
+          "sha256": "3ceca513d0e5f640ab2f1f5157184de13a6c9269273f8292e8fad887d4ac145a",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mdb-98",
+          "url": "https://files.mobilitydatabase.org/mdb-98/latest.zip",
+          "sha256": "47899cd2031446a3343b52aae97eac6adf0758d680c5d1584dd3679152294090",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-05-27"
+        },
+        {
+          "source_id": "mdb-994",
+          "url": "https://files.mobilitydatabase.org/mdb-994/latest.zip",
+          "sha256": "334e6307ebea39e1bab90dbc047cc815a5ccded314c461621ceacda6c1c0c343",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "ntd-90162",
+          "url": "https://files.mobilitydatabase.org/ntd-90162/latest.zip",
+          "sha256": "cb11597592dfacd0fdbf2682ad72f30412f06a866f3c06e9166db5eb777bfee1",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "ntd-90208",
+          "url": "https://files.mobilitydatabase.org/ntd-90208/latest.zip",
+          "sha256": "aa121c04c964d67b5b35be063116531f7d3e23ae001c321658f1e4ccfc77f6ff",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-1256",
+          "url": "https://files.mobilitydatabase.org/tld-1256/latest.zip",
+          "sha256": "460c6ef47d5dd32fdff20144f5248cbc74a35dd7068c0aa8489ecec4f675f9c8",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-1301",
+          "url": "https://files.mobilitydatabase.org/tld-1301/latest.zip",
+          "sha256": "7387ff77c48180b7f01aa301d1ded7f7fab3a7b5eb90cf83a0681ab18e5b0aa6",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-461",
+          "url": "https://files.mobilitydatabase.org/tld-461/latest.zip",
+          "sha256": "eef11ce469781d9c733f9b7a8cde409fac3af9132b85062318e84a3eeae02726",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-4667",
+          "url": "https://files.mobilitydatabase.org/tld-4667/latest.zip",
+          "sha256": "5ccc98ed17db4d7086ef73a6ebd4146b4c1981043fc2c0579ab0c79d737957e2",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-6679",
+          "url": "https://files.mobilitydatabase.org/tld-6679/latest.zip",
+          "sha256": "16dd82ec9a996020048b557d932a15e3cec07b8f5afc341c8ba0008ca949f716",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-6681",
+          "url": "https://files.mobilitydatabase.org/tld-6681/latest.zip",
+          "sha256": "e78b876492774d86350db4b2d7ca1791ec70d7e2c15a8adf3973079d1110d5bf",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-6724",
+          "url": "https://files.mobilitydatabase.org/tld-6724/latest.zip",
+          "sha256": "fc097d3d3ebcfcc933798f986b22c229f683429b2e3daa7ba656012faac31d28",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-6907",
+          "url": "https://files.mobilitydatabase.org/tld-6907/latest.zip",
+          "sha256": "e22947303ad45ecea45adea6499ac55edc130a4bf28637a08c8dc404a21f7a0e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "tld-881",
+          "url": "https://files.mobilitydatabase.org/tld-881/latest.zip",
+          "sha256": "4c2e4254b1befd79d36011bdb2448893b07602804a80f460c049da529be696e8",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        }
+      ],
+      "NYC": [
+        {
+          "source_id": "mta_bronx_bus",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_bx.zip",
+          "sha256": "e47c7bd67749048c0c34802084d26d1937f123f2e63bfb94ec8b1395e34bc75d",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mta_brooklyn_bus",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_b.zip",
+          "sha256": "2dec79e490ede975dfbcb7b356c698509654db72eb27936eb57e5167a38e3fb5",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-19"
+        },
+        {
+          "source_id": "mta_bus_company",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_busco.zip",
+          "sha256": "94933c1af1f182b3cf20a7e11881f14b9afd4a3c75ea310ee5f368b55a62c636",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-19"
+        },
+        {
+          "source_id": "mta_lirr",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfslirr.zip",
+          "sha256": "b1568f6a72fcb19cc7439f3122e53c9f8deb3aa8eb64467a050a20d3078bb69b",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-16"
+        },
+        {
+          "source_id": "mta_manhattan_bus",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_m.zip",
+          "sha256": "e020b620469140033feb17691c38e97042a42c0956437333b4c03a8361cfaa36",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mta_mnr",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfsmnr.zip",
+          "sha256": "346b6cfed398ebf84e1a255053d6eda7f4b76a6d63b7c0f8b92399311f2d4f68",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mta_queens_bus",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_q.zip",
+          "sha256": "d721863ae22c512ac494e2d341c4c087791ae925dd3c87a985084b40277e4189",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mta_staten_island_bus",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_si.zip",
+          "sha256": "0d54de782e7094cd46dab5076d4a0a502e3872becea58e9a6a675ab234744136",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        },
+        {
+          "source_id": "mta_subway",
+          "url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip",
+          "sha256": "056d1fc821f26e859c41ffb227197bdd45dbf4a0c3ef41b3509a5ff6dda4602e",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-08-26"
+        }
+      ],
+      "PARIS": [
+        {
+          "source_id": "idfm",
+          "url": "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip",
+          "sha256": "593f76cb2a8d90a330b22758715b3956844dec258848e26b086ccf54ddc36171",
+          "snapshot_date": "2026-08-25",
+          "status": "processed",
+          "representative_wednesday": "2026-09-23"
+        }
+      ]
+    }
+  },
+  "selection_evidence": {
+    "selected": "percentile",
+    "rule_passed_by_absolute": false,
+    "comparisons": {
+      "PARIS->CA": {
+        "absolute_coverage": 393,
+        "percentile_coverage": 529,
+        "coverage_not_worse": false,
+        "absolute_max_reuse": 19,
+        "percentile_max_reuse": 26,
+        "reuse_not_worse": true
+      },
+      "NYC->CA": {
+        "absolute_coverage": 5649,
+        "percentile_coverage": 5531,
+        "coverage_not_worse": true,
+        "absolute_max_reuse": 17,
+        "percentile_max_reuse": 14,
+        "reuse_not_worse": false
+      },
+      "PARIS->NYC": {
+        "absolute_coverage": 413,
+        "percentile_coverage": 420,
+        "coverage_not_worse": false,
+        "absolute_max_reuse": 19,
+        "percentile_max_reuse": 24,
+        "reuse_not_worse": true
+      },
+      "NYC->PARIS": {
+        "absolute_coverage": 460,
+        "percentile_coverage": 350,
+        "coverage_not_worse": true,
+        "absolute_max_reuse": 2547,
+        "percentile_max_reuse": 615,
+        "reuse_not_worse": false
+      }
+    }
+  }
+}

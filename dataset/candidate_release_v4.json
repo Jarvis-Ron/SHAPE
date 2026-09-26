@@ -1,0 +1,54 @@
+{
+  "schema_version": "civic-static-grid-candidate-release-v1",
+  "release_tag": "v4_0p5km",
+  "released_at": "2026-08-26",
+  "claim_scope": "Pins the three released static-grid tables and geometry by content hashes.",
+  "primary_files": {
+    "NYC": {
+      "path": "dataset/NYC_grid_merged_features.csv",
+      "data_rows": 7376,
+      "bytes": 3232613,
+      "sha256": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a"
+    },
+    "CA": {
+      "path": "dataset/CA_grid_merged_features.csv",
+      "data_rows": 105640,
+      "bytes": 45656208,
+      "sha256": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d"
+    },
+    "PARIS": {
+      "path": "dataset/PARIS_grid_merged_features.csv",
+      "data_rows": 709,
+      "bytes": 329779,
+      "sha256": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1"
+    }
+  },
+  "geometry_receipts": {
+    "NYC": {
+      "geometry_sha256": "f16e894e41f8a735f174df30940a0566a906f9197e49aaf0128d4c7ca91627c6",
+      "median_cell_area_km2": 0.25000000000010325,
+      "n_rows_nominal": 98,
+      "id_stride": 100
+    },
+    "CA": {
+      "geometry_sha256": "bcb4ed609b9ddaf48bcec82af9b86ac9ecdfe716684ad1811e1cdad46563f1d1",
+      "median_cell_area_km2": 0.250000000000085,
+      "n_rows_nominal": 1601,
+      "id_stride": 1722
+    },
+    "PARIS": {
+      "geometry_sha256": "1f70e0c74435f67d90820e9552777c82d84fbb43f8568484160d6d540d47b99a",
+      "median_cell_area_km2": 0.25000000000007844,
+      "n_rows_nominal": 20,
+      "id_stride": 37
+    }
+  },
+  "supporting_files": {
+    "dataset/grid_spec.json": "3764d2b9b8cc5befd99cbf52301da5be486c7117c7ef394c2828893b0949df19",
+    "dataset/feature_spec.json": "586b4eb45b9d93e4c0932b956aade053bee829eb290308357f28fb5cc2be6e7f",
+    "dataset/producer_audit_v4.json": "2d8a5e3d013d5be6679ffba846dbd346b0193d6cff42631c239076b8e928c2b7",
+    "dataset/NYC_grid_provenance.csv": "b50b971981daea28e365600ad672530987010c9fb3ba7a54460dff08e6f6fe9a",
+    "dataset/CA_grid_provenance.csv": "321a4c47befaf535a7ae928228c23f376c625939e7ab1feedad683feb0a857cd",
+    "dataset/PARIS_grid_provenance.csv": "424887ee3a41c164c8f14040d30a43b04f6ef083d9f263b951e2f2316887a436"
+  }
+}

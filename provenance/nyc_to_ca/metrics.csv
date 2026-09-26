@@ -1,0 +1,11 @@
+arm,metric,mean,std,draw_count,uncertainty,std_ddof
+weighted_l0_k0_c1,M2_od_cpc,0.833024852328177,0.005428394776183205,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,M2_od_pearson,0.9697645244312053,0.002964479068716843,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,M1_visit_jsd,0.30587141879801877,0.002117801552058794,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,M3_period_space_jsd_mean,0.4058483467237247,0.0024287111410742222,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,A_visit_entropy_ratio,1.0351266863499662,0.0028271817799501164,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,A_grid_coverage_ratio,0.88184229390681,0.007477474264622767,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,A_radius_of_gyration_distribution_jsd,0.17766730650363452,0.0032494211105177943,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,A_jump_distance_spectrum_jsd,0.12478515180609788,0.0013087623501649938,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,A_jump_bin_distribution_jsd,0.10510473329140624,0.0011290336665329202,200,shell_SD_fixed_models,1
+weighted_l0_k0_c1,A_visited_poi_category_share_jsd,0.0015162834590201723,6.846976747030542e-05,200,shell_SD_fixed_models,1

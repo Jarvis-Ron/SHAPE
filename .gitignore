@@ -1,0 +1,60 @@
+# Python caches and tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.pyo
+
+# Virtual environments and package builds
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+site-packages/
+
+# Secrets and credentials
+*.pem
+*.key
+key.yaml
+*.env
+.credentials.json
+
+# Editors, operating systems, office temp files
+.idea/
+.vscode/
+.DS_Store
+~$*
+
+# Runtime logs and generated results
+logs/
+record/
+results/
+*.log
+wandb/
+.runs/
+.huggingface_cache/
+data_cache/
+SHAPE/**/output/
+SHAPE/**/checkpoints/
+
+# Intermediate experiment and build artifacts
+/experiments
+output/
+smoke_test/
+predictions/
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Locally generated source events and runs only.
+/SHAPE/stage2/*_event_driven/
+/core
+/core.*
+# Bundled dataset/, inputs/, reference_results/, and training_loss/ are tracked.

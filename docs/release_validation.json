@@ -1,0 +1,110 @@
+{
+  "status": "passed",
+  "reference_score_replay": {
+    "nyc_to_ca": {
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "primary_metric_values_checked": 1000,
+      "maximum_draw_absolute_error": 1.5178830414797062e-16,
+      "maximum_summary_absolute_error": 6.952446431063297e-18
+    },
+    "nyc_to_paris": {
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "primary_metric_values_checked": 5000,
+      "maximum_draw_absolute_error": 1.8843433757798067e-16,
+      "maximum_summary_absolute_error": 1.3823577699190182e-18
+    },
+    "ca_to_nyc": {
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "primary_metric_values_checked": 25,
+      "maximum_draw_absolute_error": 7.632783294297951e-17,
+      "maximum_summary_absolute_error": 4.141652298894627e-17
+    },
+    "ca_to_paris": {
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "primary_metric_values_checked": 5000,
+      "maximum_draw_absolute_error": 1.9927635930283571e-16,
+      "maximum_summary_absolute_error": 3.9979955110402976e-19
+    }
+  },
+  "nyc_to_paris_cpu_generation": {
+    "seed_42": {
+      "events": 22772,
+      "different_events": 0
+    },
+    "seed_43": {
+      "events": 22772,
+      "different_events": 15
+    },
+    "seed_44": {
+      "events": 22772,
+      "different_events": 0
+    },
+    "seed_45": {
+      "events": 22772,
+      "different_events": 1
+    },
+    "seed_46": {
+      "events": 22772,
+      "different_events": 0
+    }
+  },
+  "nyc_to_paris_cpu_generation_scores": {
+    "direction": "nyc_to_paris",
+    "protocol": "per_seed_shell",
+    "seeds": [
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "means": {
+      "M2_od_cpc": 0.5806227260743475,
+      "M3_period_space_jsd_mean": 0.25007140431234026,
+      "A_radius_of_gyration_distribution_jsd": 0.0033845266377241293,
+      "A_jump_distance_spectrum_jsd": 0.029248021671589942,
+      "A_visited_poi_category_share_jsd": 0.00021931030964163922
+    },
+    "stds": {
+      "M2_od_cpc": 0.0032667290985361774,
+      "M3_period_space_jsd_mean": 0.0027301617124722032,
+      "A_radius_of_gyration_distribution_jsd": 0.0003579091888114164,
+      "A_jump_distance_spectrum_jsd": 0.0013474641159949732,
+      "A_visited_poi_category_share_jsd": 1.9401372395983787e-05
+    },
+    "prediction_sha256": "3825fa5282ec63b37f40ae44300cae438984eb58dea44859b51b9f622e5a11fe",
+    "shell_plan_array_sha256": "625767a9408477b3bffbb99fc79281a7be9d0aaf0f21c113d1814c13175d6f51",
+    "target_days": 5938,
+    "source_days": 9400,
+    "status": "complete"
+  },
+  "tests": {
+    "passed": 64
+  },
+  "metadata_sanitization": {
+    "numerical_arrays_and_tensors_verified": 5964,
+    "value_changes": 0
+  }
+}

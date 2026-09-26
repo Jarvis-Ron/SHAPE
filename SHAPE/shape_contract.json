@@ -1,0 +1,57 @@
+{
+  "schema": "shape_code_v1",
+  "model": "SHAPE",
+  "variant": {
+    "weighted_rank": true,
+    "lambda": 0,
+    "kappa": 0,
+    "cost": true
+  },
+  "frozen_landing": {
+    "scale_mode": "rank",
+    "selection_mode": "sample",
+    "selection_temperature": 0.75,
+    "distance_mode": "mixture",
+    "distance_tau": 1.25,
+    "attraction_mode": "raw",
+    "attraction_strength": 1.0,
+    "revisit_beta": 1.0,
+    "landing_temperature": 1.0,
+    "attribute_top_k": 50,
+    "anchor_top_k": 2,
+    "home_context_neighbors": 25,
+    "candidate_top_k": 512,
+    "candidate_omitted_mass_tolerance": 0.0001,
+    "candidate_audit_steps": 128
+  },
+  "sampling": {
+    "landing_seeds": [
+      42,
+      43,
+      44
+    ],
+    "shell_repeats": 200,
+    "shell_seed": 42031,
+    "shell_contract": "predicted_day_bootstrap_into_target_person_day_shell_v1",
+    "same_plan_across_landing_seeds": true,
+    "exact_target_event_count": true,
+    "target_city_information_used_by_shell": "target_day_lengths_user_grouping_and_event_times_for_evaluation_only",
+    "target_grid_or_outcome_used_by_shell": false
+  },
+  "evaluation": {
+    "primary_stratum": "events_ge_2",
+    "spatial_granularity": "od_100x100",
+    "aggregation": "seed_population_mean_then_metric_then_shell_mean",
+    "uncertainty": "sample_SD_over_200_matched_shells",
+    "std_ddof": 1
+  },
+  "information": {
+    "behavior": "observed_source_codes_and_source_event_schedule",
+    "prototype_semantics": "source_train",
+    "distance_cost_fit": "source_train",
+    "target_map": "complete_static_grid_vocabulary_and_raw_POI_counts",
+    "target_checkins_for_generation": "population_home_quota_only",
+    "target_distance_calibration": false,
+    "target_test": "unchanged_matched_person_day_evaluation_shell_only"
+  }
+}

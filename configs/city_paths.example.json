@@ -1,0 +1,20 @@
+{
+  "nyc": {
+    "checkin_file": "dataset/checkin_NY_TY2014/dataset_TSMC2014_NYC.txt",
+    "latent_file": "SHAPE/stage1/output/nyc_latent.npz",
+    "out_dir": "SHAPE/stage2/nyc_event_driven"
+  },
+  "ca": {
+    "checkin_files": [
+      "dataset/Gowalla-CA/gowalla_train.csv",
+      "dataset/Gowalla-CA/gowalla_val.csv",
+      "dataset/Gowalla-CA/gowalla_test.csv"
+    ],
+    "latent_file": "SHAPE/stage1/output/ca_latent.npz",
+    "out_dir": "SHAPE/stage2/ca_event_driven"
+  },
+  "paris": {
+    "checkin_file": "dataset/checkin_global2015/dataset_TIST2015_Checkins.txt",
+    "poi_file": "dataset/checkin_global2015/dataset_TIST2015_POIs.txt"
+  }
+}

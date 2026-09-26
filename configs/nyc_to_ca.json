@@ -1,0 +1,32 @@
+{
+  "direction": "nyc_to_ca",
+  "source_city": "nyc",
+  "target_city": "ca",
+  "configuration": {
+    "weighted_rank": true,
+    "lambda": 0,
+    "kappa": 0,
+    "cost": true
+  },
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "protocol": "pooled_three_seed_shell",
+  "source_codes": "../inputs/nyc_to_ca/source_codes.npz",
+  "landing_checkpoint": "../inputs/nyc_to_ca/landing.pth",
+  "target_reference": "../inputs/nyc_to_ca/target_reference.npz",
+  "source_grid": "../dataset/NYC_grid_merged_features.csv",
+  "target_grid": "../dataset/CA_grid_merged_features.csv",
+  "expected_sha256": {
+    "source_codes": "5531bc4cb4a3c4895b6df88bdd9c6776486bf71132976a57fbeb10227742651e",
+    "landing_checkpoint": "ce2739b7282651c440302f92f54d72aeacac8a7968826e49ac33e46168a3d799",
+    "target_reference": "ac347ad66c75b513626010a79881acc7ad40afb4bd0a46818633897d38fe23d7",
+    "source_grid": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
+    "target_grid": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d"
+  },
+  "archived_predictions": "../inputs/nyc_to_ca/predictions.npz",
+  "original_shell_plans": "../inputs/nyc_to_ca/shell_plans.npz",
+  "shell_length_policy": "common-support"
+}

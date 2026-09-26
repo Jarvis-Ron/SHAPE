@@ -1,0 +1,856 @@
+{
+  "schema_version": "civic-static-features-v4-producer-audit",
+  "selection": {
+    "selected": "percentile",
+    "rule_passed_by_absolute": false,
+    "comparisons": {
+      "PARIS->CA": {
+        "absolute_coverage": 393,
+        "percentile_coverage": 529,
+        "coverage_not_worse": false,
+        "absolute_max_reuse": 19,
+        "percentile_max_reuse": 26,
+        "reuse_not_worse": true
+      },
+      "NYC->CA": {
+        "absolute_coverage": 5649,
+        "percentile_coverage": 5531,
+        "coverage_not_worse": true,
+        "absolute_max_reuse": 17,
+        "percentile_max_reuse": 14,
+        "reuse_not_worse": false
+      },
+      "PARIS->NYC": {
+        "absolute_coverage": 413,
+        "percentile_coverage": 420,
+        "coverage_not_worse": false,
+        "absolute_max_reuse": 19,
+        "percentile_max_reuse": 24,
+        "reuse_not_worse": true
+      },
+      "NYC->PARIS": {
+        "absolute_coverage": 460,
+        "percentile_coverage": 350,
+        "coverage_not_worse": true,
+        "absolute_max_reuse": 2547,
+        "percentile_max_reuse": 615,
+        "reuse_not_worse": false
+      }
+    }
+  },
+  "acceptance_gates": {
+    "geometry": {
+      "CA": true,
+      "NYC": true,
+      "PARIS": true
+    },
+    "zero_mask": {
+      "CA": true,
+      "NYC": true,
+      "PARIS": true
+    },
+    "transport_effective_rank_ge_4": {
+      "CA": false,
+      "NYC": false,
+      "PARIS": false
+    },
+    "soft_saturation_no_one_and_p99_lt_0_95": {
+      "CA": null,
+      "NYC": null,
+      "PARIS": null
+    },
+    "cross_city": {
+      "PARIS->CA": {
+        "coverage_of_smaller_grid_set_ge_0_5": true,
+        "max_reuse_within_limit": true,
+        "mean_max_cosine_lt_0_99": true
+      },
+      "NYC->CA": {
+        "coverage_of_smaller_grid_set_ge_0_5": true,
+        "max_reuse_within_limit": true,
+        "mean_max_cosine_lt_0_99": true
+      },
+      "PARIS->NYC": {
+        "coverage_of_smaller_grid_set_ge_0_5": true,
+        "max_reuse_within_limit": true,
+        "mean_max_cosine_lt_0_99": true
+      },
+      "NYC->PARIS": {
+        "coverage_of_smaller_grid_set_ge_0_5": false,
+        "max_reuse_within_limit": false,
+        "mean_max_cosine_lt_0_99": true
+      }
+    },
+    "notes": [
+      "The no-exact-one/p99 saturation gate applies to soft-saturated absolute features; mathematical ratio fields may legitimately equal 1.",
+      "For a percentile fallback, a uniform rank feature has p99 near 0.99 by construction, so the absolute soft-saturation p99 gate is not applicable."
+    ]
+  },
+  "candidates": {
+    "absolute": {
+      "structural_failures": [],
+      "cities": {
+        "CA": {
+          "schema_exact": true,
+          "grid_ids_unique": true,
+          "grid_ids_sorted": true,
+          "rows_align_with_provenance": true,
+          "missing_value_count": 0,
+          "feature_min": 0.0,
+          "feature_max": 1.0,
+          "poi_nonzero_simplex_max_error": 1.2212453270876722e-15,
+          "poi_zero_mask_matches_raw": true,
+          "poi_zero_rows": 1080,
+          "poi_raw_zero_rows": 1080,
+          "transport_effective_rank_90": 2,
+          "transport_explained_variance": [
+            0.8141509250213581,
+            0.10029847316403243,
+            0.07396320102004005,
+            0.010082446905652593,
+            0.0009322556493700125,
+            0.0005726982395469898
+          ],
+          "transport_active_rows": 20942,
+          "transport_active_effective_rank_90": 3,
+          "transport_active_explained_variance": [
+            0.6794794428240176,
+            0.1357192940579533,
+            0.10982518132358729,
+            0.05626922214001194,
+            0.01227044036414068,
+            0.006436419290289452
+          ],
+          "exact_one_count": {
+            "poi_prop_0": 0,
+            "poi_prop_1": 0,
+            "poi_prop_2": 0,
+            "poi_prop_3": 0,
+            "poi_prop_4": 0,
+            "poi_prop_5": 0,
+            "poi_prop_6": 0,
+            "poi_prop_7": 0,
+            "poi_prop_8": 0,
+            "poi_prop_9": 0,
+            "poi_prop_10": 0,
+            "poi_prop_11": 0,
+            "poi_prop_12": 0,
+            "poi_density_level": 0,
+            "total_stations": 0,
+            "metro_stations": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0,
+            "bus_frequency": 87
+          },
+          "p99": {
+            "poi_prop_0": 0.5784333260452085,
+            "poi_prop_1": 0.7556539512226995,
+            "poi_prop_2": 0.5347315044089564,
+            "poi_prop_3": 0.5605352355697824,
+            "poi_prop_4": 0.5274265954799983,
+            "poi_prop_5": 0.517034555404647,
+            "poi_prop_6": 0.5748803652535243,
+            "poi_prop_7": 0.5048314342921704,
+            "poi_prop_8": 0.515594253223918,
+            "poi_prop_9": 0.5204585379303807,
+            "poi_prop_10": 0.5181153878879983,
+            "poi_prop_11": 0.5024196214986036,
+            "poi_prop_12": 0.5072268218785912,
+            "poi_density_level": 0.5275528368896016,
+            "total_stations": 0.9584663221292901,
+            "metro_stations": 0.6518929273875368,
+            "bus_stations": 0.4749195862974826,
+            "total_frequency": 0.4715833816847561,
+            "metro_frequency": 0.0,
+            "bus_frequency": 0.0
+          },
+          "soft_saturated_exact_one_count": {
+            "poi_density_level": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0
+          },
+          "soft_saturated_p99": {
+            "poi_density_level": 0.5275528368896016,
+            "bus_stations": 0.4749195862974826,
+            "total_frequency": 0.4715833816847561,
+            "metro_frequency": 0.0
+          },
+          "boundary_density_max_abs_identity_error": 6.821210263296962e-13,
+          "station_distance_field_max_abs_error": {
+            "total_stations": 3.3306690738754696e-16,
+            "metro_stations": 2.7755575615628914e-16
+          },
+          "transport_correlations": {
+            "total_stations__total_frequency": 0.7159858941459152,
+            "total_stations__metro_stations": 0.36734858037086743,
+            "total_frequency__bus_frequency": 0.13683096707255007
+          },
+          "geometry": {
+            "emitted_rows": 105640,
+            "cell_area_km2_min_all_emitted": 0.08921460929283795,
+            "cell_area_km2_median_all_emitted": 0.2500000000000785,
+            "full_width_height_rows": 105593,
+            "full_cell_area_km2_min": 0.24999999999816633,
+            "full_cell_area_km2_max": 0.25000000000206335,
+            "expected_full_cell_area_km2": 0.25,
+            "full_cell_area_max_abs_drift_fraction": 8.253397965063414e-12
+          },
+          "sha256": "fe5259cd2370738b282fa0d781ceb871268f2cdc2675d99b259d9d964f0f0840"
+        },
+        "NYC": {
+          "schema_exact": true,
+          "grid_ids_unique": true,
+          "grid_ids_sorted": true,
+          "rows_align_with_provenance": true,
+          "missing_value_count": 0,
+          "feature_min": 0.0,
+          "feature_max": 1.0,
+          "poi_nonzero_simplex_max_error": 1.1102230246251565e-15,
+          "poi_zero_mask_matches_raw": true,
+          "poi_zero_rows": 18,
+          "poi_raw_zero_rows": 18,
+          "transport_effective_rank_90": 2,
+          "transport_explained_variance": [
+            0.8133426274464614,
+            0.09573561952902729,
+            0.05739740670950331,
+            0.027159249639967156,
+            0.006045378580969657,
+            0.0003197180940713013
+          ],
+          "transport_active_rows": 2350,
+          "transport_active_effective_rank_90": 2,
+          "transport_active_explained_variance": [
+            0.7313399996558337,
+            0.1858129467985816,
+            0.04515948889258617,
+            0.023923883026559394,
+            0.012354030405589444,
+            0.0014096512208494753
+          ],
+          "exact_one_count": {
+            "poi_prop_0": 0,
+            "poi_prop_1": 0,
+            "poi_prop_2": 0,
+            "poi_prop_3": 0,
+            "poi_prop_4": 0,
+            "poi_prop_5": 0,
+            "poi_prop_6": 0,
+            "poi_prop_7": 0,
+            "poi_prop_8": 0,
+            "poi_prop_9": 0,
+            "poi_prop_10": 0,
+            "poi_prop_11": 0,
+            "poi_prop_12": 0,
+            "poi_density_level": 0,
+            "total_stations": 0,
+            "metro_stations": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0,
+            "bus_frequency": 53
+          },
+          "p99": {
+            "poi_prop_0": 0.5718955550696805,
+            "poi_prop_1": 0.7556539512226995,
+            "poi_prop_2": 0.2673657522044782,
+            "poi_prop_3": 0.6708464805512468,
+            "poi_prop_4": 0.47374717600047045,
+            "poi_prop_5": 0.5085172777023235,
+            "poi_prop_6": 0.4561013555432594,
+            "poi_prop_7": 0.3365542895281136,
+            "poi_prop_8": 0.515594253223918,
+            "poi_prop_9": 0.5204585379303807,
+            "poi_prop_10": 0.5090576939439992,
+            "poi_prop_11": 0.3349464143324024,
+            "poi_prop_12": 0.1787736392885817,
+            "poi_density_level": 0.576275090223608,
+            "total_stations": 0.9787330771479019,
+            "metro_stations": 0.9044026014760225,
+            "bus_stations": 0.5201954614381934,
+            "total_frequency": 0.5341300722470708,
+            "metro_frequency": 0.4668153831460082,
+            "bus_frequency": 0.7434841352859134
+          },
+          "soft_saturated_exact_one_count": {
+            "poi_density_level": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0
+          },
+          "soft_saturated_p99": {
+            "poi_density_level": 0.576275090223608,
+            "bus_stations": 0.5201954614381934,
+            "total_frequency": 0.5341300722470708,
+            "metro_frequency": 0.4668153831460082
+          },
+          "boundary_density_max_abs_identity_error": 9.094947017729282e-13,
+          "station_distance_field_max_abs_error": {
+            "total_stations": 3.3306690738754696e-16,
+            "metro_stations": 2.220446049250313e-16
+          },
+          "transport_correlations": {
+            "total_stations__total_frequency": 0.857715902065291,
+            "total_stations__metro_stations": 0.7702622609895752,
+            "total_frequency__bus_frequency": 0.3262183684089582
+          },
+          "geometry": {
+            "emitted_rows": 7376,
+            "cell_area_km2_min_all_emitted": 0.03129615429230943,
+            "cell_area_km2_median_all_emitted": 0.2500000000000769,
+            "full_width_height_rows": 7284,
+            "full_cell_area_km2_min": 0.24999999999866448,
+            "full_cell_area_km2_max": 0.2500000000017216,
+            "expected_full_cell_area_km2": 0.25,
+            "full_cell_area_max_abs_drift_fraction": 6.886491377144921e-12
+          },
+          "sha256": "2812bd47f25341705a0934213a83a66e237f9bd6dcb4e74c227b4595d97f4bb8"
+        },
+        "PARIS": {
+          "schema_exact": true,
+          "grid_ids_unique": true,
+          "grid_ids_sorted": true,
+          "rows_align_with_provenance": true,
+          "missing_value_count": 0,
+          "feature_min": 0.0,
+          "feature_max": 1.0,
+          "poi_nonzero_simplex_max_error": 1.1102230246251565e-15,
+          "poi_zero_mask_matches_raw": true,
+          "poi_zero_rows": 2,
+          "poi_raw_zero_rows": 2,
+          "transport_effective_rank_90": 3,
+          "transport_explained_variance": [
+            0.6890399556485828,
+            0.2047732591091492,
+            0.06603911457949993,
+            0.025343466673646235,
+            0.014133715798057249,
+            0.0006704881910645717
+          ],
+          "transport_active_rows": 631,
+          "transport_active_effective_rank_90": 2,
+          "transport_active_explained_variance": [
+            0.8510117041887391,
+            0.08431400469278254,
+            0.03839250180257128,
+            0.017870852421105837,
+            0.0075067568391168436,
+            0.0009041800556845836
+          ],
+          "exact_one_count": {
+            "poi_prop_0": 0,
+            "poi_prop_1": 0,
+            "poi_prop_2": 0,
+            "poi_prop_3": 0,
+            "poi_prop_4": 0,
+            "poi_prop_5": 0,
+            "poi_prop_6": 0,
+            "poi_prop_7": 0,
+            "poi_prop_8": 0,
+            "poi_prop_9": 0,
+            "poi_prop_10": 0,
+            "poi_prop_11": 0,
+            "poi_prop_12": 0,
+            "poi_density_level": 0,
+            "total_stations": 0,
+            "metro_stations": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0,
+            "bus_frequency": 6
+          },
+          "p99": {
+            "poi_prop_0": 0.4402665532727276,
+            "poi_prop_1": 0.5436037694324557,
+            "poi_prop_2": 0.14801833139807918,
+            "poi_prop_3": 0.18259246155194137,
+            "poi_prop_4": 0.3506425624807096,
+            "poi_prop_5": 0.2581765865942304,
+            "poi_prop_6": 0.43275240771123674,
+            "poi_prop_7": 0.3337845522632126,
+            "poi_prop_8": 0.25164168718770297,
+            "poi_prop_9": 0.5204585379303807,
+            "poi_prop_10": 0.2590576939439991,
+            "poi_prop_11": 0.2009678485994414,
+            "poi_prop_12": 0.1533528019332108,
+            "poi_density_level": 0.5842906745424918,
+            "total_stations": 0.9832376083483932,
+            "metro_stations": 0.9494031402077951,
+            "bus_stations": 0.6127038153260338,
+            "total_frequency": 0.5591825006002232,
+            "metro_frequency": 0.5215145388043011,
+            "bus_frequency": 0.8537639103149752
+          },
+          "soft_saturated_exact_one_count": {
+            "poi_density_level": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0
+          },
+          "soft_saturated_p99": {
+            "poi_density_level": 0.5842906745424918,
+            "bus_stations": 0.6127038153260338,
+            "total_frequency": 0.5591825006002232,
+            "metro_frequency": 0.5215145388043011
+          },
+          "boundary_density_max_abs_identity_error": 2.2737367544323206e-13,
+          "station_distance_field_max_abs_error": {
+            "total_stations": 2.220446049250313e-16,
+            "metro_stations": 2.220446049250313e-16
+          },
+          "transport_correlations": {
+            "total_stations__total_frequency": 0.6732185905681501,
+            "total_stations__metro_stations": 0.33128915497996614,
+            "total_frequency__bus_frequency": 0.36553097668458023
+          },
+          "geometry": {
+            "emitted_rows": 709,
+            "cell_area_km2_min_all_emitted": 0.00048140732474207963,
+            "cell_area_km2_median_all_emitted": 0.25000000000007844,
+            "full_width_height_rows": 664,
+            "full_cell_area_km2_min": 0.24805867941975396,
+            "full_cell_area_km2_max": 0.25000000000049494,
+            "expected_full_cell_area_km2": 0.25,
+            "full_cell_area_max_abs_drift_fraction": 0.007765282320984168
+          },
+          "sha256": "4f2cd42c54610d0ff3149cbb8645765bde0680489c46b6801090c4a930bdd480"
+        }
+      },
+      "cross_city": {
+        "PARIS->CA": {
+          "source_rows": 709,
+          "target_rows": 105640,
+          "target_coverage": 393,
+          "coverage_per_source": 0.5543018335684062,
+          "coverage_of_smaller_grid_set": 0.5543018335684062,
+          "max_target_reuse": 19,
+          "max_reuse_fraction_of_source": 0.02679830747531735,
+          "mean_max_cosine": 0.9923111988691953,
+          "dominant_category_r_at_10_poi_sources": 0.9872701555869873,
+          "dominant_category_source_count": 707
+        },
+        "NYC->CA": {
+          "source_rows": 7376,
+          "target_rows": 105640,
+          "target_coverage": 5649,
+          "coverage_per_source": 0.7658622559652929,
+          "coverage_of_smaller_grid_set": 0.7658622559652929,
+          "max_target_reuse": 17,
+          "max_reuse_fraction_of_source": 0.0023047722342733187,
+          "mean_max_cosine": 0.9915111387485163,
+          "dominant_category_r_at_10_poi_sources": 0.9959228051100842,
+          "dominant_category_source_count": 7358
+        },
+        "PARIS->NYC": {
+          "source_rows": 709,
+          "target_rows": 7376,
+          "target_coverage": 413,
+          "coverage_per_source": 0.5825105782792666,
+          "coverage_of_smaller_grid_set": 0.5825105782792666,
+          "max_target_reuse": 19,
+          "max_reuse_fraction_of_source": 0.02679830747531735,
+          "mean_max_cosine": 0.9922393084605051,
+          "dominant_category_r_at_10_poi_sources": 0.9886845827439887,
+          "dominant_category_source_count": 707
+        },
+        "NYC->PARIS": {
+          "source_rows": 7376,
+          "target_rows": 709,
+          "target_coverage": 460,
+          "coverage_per_source": 0.06236442516268981,
+          "coverage_of_smaller_grid_set": 0.6488011283497884,
+          "max_target_reuse": 2547,
+          "max_reuse_fraction_of_source": 0.3453091106290672,
+          "mean_max_cosine": 0.8141473986411,
+          "dominant_category_r_at_10_poi_sources": 0.9157379722750747,
+          "dominant_category_source_count": 7358
+        }
+      }
+    },
+    "percentile": {
+      "structural_failures": [],
+      "cities": {
+        "CA": {
+          "schema_exact": true,
+          "grid_ids_unique": true,
+          "grid_ids_sorted": true,
+          "rows_align_with_provenance": true,
+          "missing_value_count": 0,
+          "feature_min": 0.0,
+          "feature_max": 0.9999952669443392,
+          "poi_nonzero_simplex_max_error": 1.2212453270876722e-15,
+          "poi_zero_mask_matches_raw": true,
+          "poi_zero_rows": 1080,
+          "poi_raw_zero_rows": 1080,
+          "transport_effective_rank_90": 3,
+          "transport_explained_variance": [
+            0.662747621129089,
+            0.2111125771201416,
+            0.10724321031090693,
+            0.009629653818730393,
+            0.008040471454931185,
+            0.0012264661662009604
+          ],
+          "transport_active_rows": 20942,
+          "transport_active_effective_rank_90": 3,
+          "transport_active_explained_variance": [
+            0.7065374681505152,
+            0.17443038387111973,
+            0.053650138913386054,
+            0.047611055231016546,
+            0.010926873745296451,
+            0.00684408008866596
+          ],
+          "exact_one_count": {
+            "poi_prop_0": 0,
+            "poi_prop_1": 0,
+            "poi_prop_2": 0,
+            "poi_prop_3": 0,
+            "poi_prop_4": 0,
+            "poi_prop_5": 0,
+            "poi_prop_6": 0,
+            "poi_prop_7": 0,
+            "poi_prop_8": 0,
+            "poi_prop_9": 0,
+            "poi_prop_10": 0,
+            "poi_prop_11": 0,
+            "poi_prop_12": 0,
+            "poi_density_level": 0,
+            "total_stations": 0,
+            "metro_stations": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0,
+            "bus_frequency": 0
+          },
+          "p99": {
+            "poi_prop_0": 0.5784333260452085,
+            "poi_prop_1": 0.7556539512226995,
+            "poi_prop_2": 0.5347315044089564,
+            "poi_prop_3": 0.5605352355697824,
+            "poi_prop_4": 0.5274265954799983,
+            "poi_prop_5": 0.517034555404647,
+            "poi_prop_6": 0.5748803652535243,
+            "poi_prop_7": 0.5048314342921704,
+            "poi_prop_8": 0.515594253223918,
+            "poi_prop_9": 0.5204585379303807,
+            "poi_prop_10": 0.5181153878879983,
+            "poi_prop_11": 0.5024196214986036,
+            "poi_prop_12": 0.5072268218785912,
+            "poi_density_level": 0.9898920237184391,
+            "total_stations": 0.9899953616054524,
+            "metro_stations": 0.9899953616054524,
+            "bus_stations": 0.9495988921783974,
+            "total_frequency": 0.9495138955209628,
+            "metro_frequency": 0.0,
+            "bus_frequency": 0.0
+          },
+          "soft_saturated_exact_one_count": {
+            "poi_density_level": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0
+          },
+          "soft_saturated_p99": {
+            "poi_density_level": 0.9898920237184391,
+            "bus_stations": 0.9495988921783974,
+            "total_frequency": 0.9495138955209628,
+            "metro_frequency": 0.0
+          },
+          "boundary_density_max_abs_identity_error": 6.821210263296962e-13,
+          "station_distance_field_max_abs_error": {
+            "total_stations": null,
+            "metro_stations": null
+          },
+          "transport_correlations": {
+            "total_stations__total_frequency": 0.5937688525038182,
+            "total_stations__metro_stations": 0.5620081502226421,
+            "total_frequency__bus_frequency": 0.17203012746298707
+          },
+          "geometry": {
+            "emitted_rows": 105640,
+            "cell_area_km2_min_all_emitted": 0.08921460929283795,
+            "cell_area_km2_median_all_emitted": 0.2500000000000785,
+            "full_width_height_rows": 105593,
+            "full_cell_area_km2_min": 0.24999999999816633,
+            "full_cell_area_km2_max": 0.25000000000206335,
+            "expected_full_cell_area_km2": 0.25,
+            "full_cell_area_max_abs_drift_fraction": 8.253397965063414e-12
+          },
+          "sha256": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d"
+        },
+        "NYC": {
+          "schema_exact": true,
+          "grid_ids_unique": true,
+          "grid_ids_sorted": true,
+          "rows_align_with_provenance": true,
+          "missing_value_count": 0,
+          "feature_min": 0.0,
+          "feature_max": 0.9999322125813448,
+          "poi_nonzero_simplex_max_error": 1.1102230246251565e-15,
+          "poi_zero_mask_matches_raw": true,
+          "poi_zero_rows": 18,
+          "poi_raw_zero_rows": 18,
+          "transport_effective_rank_90": 3,
+          "transport_explained_variance": [
+            0.7302716072624772,
+            0.1401252112310046,
+            0.07274762843375752,
+            0.028468479454962187,
+            0.017879268316246616,
+            0.010507805301552141
+          ],
+          "transport_active_rows": 2350,
+          "transport_active_effective_rank_90": 4,
+          "transport_active_explained_variance": [
+            0.5590809972462072,
+            0.22421389463953348,
+            0.10901914898160141,
+            0.05587470794340672,
+            0.034649978516292,
+            0.017161272672959225
+          ],
+          "exact_one_count": {
+            "poi_prop_0": 0,
+            "poi_prop_1": 0,
+            "poi_prop_2": 0,
+            "poi_prop_3": 0,
+            "poi_prop_4": 0,
+            "poi_prop_5": 0,
+            "poi_prop_6": 0,
+            "poi_prop_7": 0,
+            "poi_prop_8": 0,
+            "poi_prop_9": 0,
+            "poi_prop_10": 0,
+            "poi_prop_11": 0,
+            "poi_prop_12": 0,
+            "poi_density_level": 0,
+            "total_stations": 0,
+            "metro_stations": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0,
+            "bus_frequency": 0
+          },
+          "p99": {
+            "poi_prop_0": 0.5718955550696805,
+            "poi_prop_1": 0.7556539512226995,
+            "poi_prop_2": 0.2673657522044782,
+            "poi_prop_3": 0.6708464805512468,
+            "poi_prop_4": 0.47374717600047045,
+            "poi_prop_5": 0.5085172777023235,
+            "poi_prop_6": 0.4561013555432594,
+            "poi_prop_7": 0.3365542895281136,
+            "poi_prop_8": 0.515594253223918,
+            "poi_prop_9": 0.5204585379303807,
+            "poi_prop_10": 0.5090576939439992,
+            "poi_prop_11": 0.3349464143324024,
+            "poi_prop_12": 0.1787736392885817,
+            "poi_density_level": 0.9899089426474584,
+            "total_stations": 0.9899335683297179,
+            "metro_stations": 0.9899335683297179,
+            "bus_stations": 0.9684574468085108,
+            "total_frequency": 0.968244680851064,
+            "metro_frequency": 0.8421610169491525,
+            "bus_frequency": 0.8426906779661016
+          },
+          "soft_saturated_exact_one_count": {
+            "poi_density_level": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0
+          },
+          "soft_saturated_p99": {
+            "poi_density_level": 0.9899089426474584,
+            "bus_stations": 0.9684574468085108,
+            "total_frequency": 0.968244680851064,
+            "metro_frequency": 0.8421610169491525
+          },
+          "boundary_density_max_abs_identity_error": 9.094947017729282e-13,
+          "station_distance_field_max_abs_error": {
+            "total_stations": null,
+            "metro_stations": null
+          },
+          "transport_correlations": {
+            "total_stations__total_frequency": 0.7137026459020783,
+            "total_stations__metro_stations": 0.8918030373368665,
+            "total_frequency__bus_frequency": 0.3632610930071481
+          },
+          "geometry": {
+            "emitted_rows": 7376,
+            "cell_area_km2_min_all_emitted": 0.03129615429230943,
+            "cell_area_km2_median_all_emitted": 0.2500000000000769,
+            "full_width_height_rows": 7284,
+            "full_cell_area_km2_min": 0.24999999999866448,
+            "full_cell_area_km2_max": 0.2500000000017216,
+            "expected_full_cell_area_km2": 0.25,
+            "full_cell_area_max_abs_drift_fraction": 6.886491377144921e-12
+          },
+          "sha256": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a"
+        },
+        "PARIS": {
+          "schema_exact": true,
+          "grid_ids_unique": true,
+          "grid_ids_sorted": true,
+          "rows_align_with_provenance": true,
+          "missing_value_count": 0,
+          "feature_min": 0.0,
+          "feature_max": 0.9992947813822284,
+          "poi_nonzero_simplex_max_error": 1.1102230246251565e-15,
+          "poi_zero_mask_matches_raw": true,
+          "poi_zero_rows": 2,
+          "poi_raw_zero_rows": 2,
+          "transport_effective_rank_90": 3,
+          "transport_explained_variance": [
+            0.6567698683424167,
+            0.1606601984610012,
+            0.0901177949330982,
+            0.0473079120969934,
+            0.03089374100895551,
+            0.014250485157535082
+          ],
+          "transport_active_rows": 631,
+          "transport_active_effective_rank_90": 4,
+          "transport_active_explained_variance": [
+            0.6476518538547085,
+            0.14357623652103563,
+            0.10669174761632552,
+            0.05191834287989842,
+            0.033077099141829165,
+            0.01708471998620282
+          ],
+          "exact_one_count": {
+            "poi_prop_0": 0,
+            "poi_prop_1": 0,
+            "poi_prop_2": 0,
+            "poi_prop_3": 0,
+            "poi_prop_4": 0,
+            "poi_prop_5": 0,
+            "poi_prop_6": 0,
+            "poi_prop_7": 0,
+            "poi_prop_8": 0,
+            "poi_prop_9": 0,
+            "poi_prop_10": 0,
+            "poi_prop_11": 0,
+            "poi_prop_12": 0,
+            "poi_density_level": 0,
+            "total_stations": 0,
+            "metro_stations": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0,
+            "bus_frequency": 0
+          },
+          "p99": {
+            "poi_prop_0": 0.4402665532727276,
+            "poi_prop_1": 0.5436037694324557,
+            "poi_prop_2": 0.14801833139807918,
+            "poi_prop_3": 0.18259246155194137,
+            "poi_prop_4": 0.3506425624807096,
+            "poi_prop_5": 0.2581765865942304,
+            "poi_prop_6": 0.43275240771123674,
+            "poi_prop_7": 0.3337845522632126,
+            "poi_prop_8": 0.25164168718770297,
+            "poi_prop_9": 0.5204585379303807,
+            "poi_prop_10": 0.2590576939439991,
+            "poi_prop_11": 0.2009678485994414,
+            "poi_prop_12": 0.1533528019332108,
+            "poi_density_level": 0.9892786421499292,
+            "total_stations": 0.9893088857545836,
+            "metro_stations": 0.9893088857545836,
+            "bus_stations": 0.9879873217115689,
+            "total_frequency": 0.9879873217115689,
+            "metro_frequency": 0.9728315412186378,
+            "bus_frequency": 0.9728315412186378
+          },
+          "soft_saturated_exact_one_count": {
+            "poi_density_level": 0,
+            "bus_stations": 0,
+            "total_frequency": 0,
+            "metro_frequency": 0
+          },
+          "soft_saturated_p99": {
+            "poi_density_level": 0.9892786421499292,
+            "bus_stations": 0.9879873217115689,
+            "total_frequency": 0.9879873217115689,
+            "metro_frequency": 0.9728315412186378
+          },
+          "boundary_density_max_abs_identity_error": 2.2737367544323206e-13,
+          "station_distance_field_max_abs_error": {
+            "total_stations": null,
+            "metro_stations": null
+          },
+          "transport_correlations": {
+            "total_stations__total_frequency": 0.3293811030216105,
+            "total_stations__metro_stations": 0.24369847013519513,
+            "total_frequency__bus_frequency": 0.5300080410743856
+          },
+          "geometry": {
+            "emitted_rows": 709,
+            "cell_area_km2_min_all_emitted": 0.00048140732474207963,
+            "cell_area_km2_median_all_emitted": 0.25000000000007844,
+            "full_width_height_rows": 664,
+            "full_cell_area_km2_min": 0.24805867941975396,
+            "full_cell_area_km2_max": 0.25000000000049494,
+            "expected_full_cell_area_km2": 0.25,
+            "full_cell_area_max_abs_drift_fraction": 0.007765282320984168
+          },
+          "sha256": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1"
+        }
+      },
+      "cross_city": {
+        "PARIS->CA": {
+          "source_rows": 709,
+          "target_rows": 105640,
+          "target_coverage": 529,
+          "coverage_per_source": 0.7461212976022567,
+          "coverage_of_smaller_grid_set": 0.7461212976022567,
+          "max_target_reuse": 26,
+          "max_reuse_fraction_of_source": 0.036671368124118475,
+          "mean_max_cosine": 0.9598792433345764,
+          "dominant_category_r_at_10_poi_sources": 0.9801980198019802,
+          "dominant_category_source_count": 707
+        },
+        "NYC->CA": {
+          "source_rows": 7376,
+          "target_rows": 105640,
+          "target_coverage": 5531,
+          "coverage_per_source": 0.7498644251626898,
+          "coverage_of_smaller_grid_set": 0.7498644251626898,
+          "max_target_reuse": 14,
+          "max_reuse_fraction_of_source": 0.001898047722342733,
+          "mean_max_cosine": 0.9825239897042379,
+          "dominant_category_r_at_10_poi_sources": 0.9884479478119054,
+          "dominant_category_source_count": 7358
+        },
+        "PARIS->NYC": {
+          "source_rows": 709,
+          "target_rows": 7376,
+          "target_coverage": 420,
+          "coverage_per_source": 0.5923836389280677,
+          "coverage_of_smaller_grid_set": 0.5923836389280677,
+          "max_target_reuse": 24,
+          "max_reuse_fraction_of_source": 0.03385049365303244,
+          "mean_max_cosine": 0.9592554010690124,
+          "dominant_category_r_at_10_poi_sources": 0.9688826025459689,
+          "dominant_category_source_count": 707
+        },
+        "NYC->PARIS": {
+          "source_rows": 7376,
+          "target_rows": 709,
+          "target_coverage": 350,
+          "coverage_per_source": 0.047451193058568326,
+          "coverage_of_smaller_grid_set": 0.4936530324400564,
+          "max_target_reuse": 615,
+          "max_reuse_fraction_of_source": 0.08337852494577007,
+          "mean_max_cosine": 0.9300234535993801,
+          "dominant_category_r_at_10_poi_sources": 0.8346017939657515,
+          "dominant_category_source_count": 7358
+        }
+      }
+    }
+  },
+  "claim_scope": "Static-feature producer diagnostics only; not an end-to-end CIVIC training/evaluation result."
+}

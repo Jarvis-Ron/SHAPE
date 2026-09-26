@@ -1,0 +1,31 @@
+{
+  "schema": "civic_event_driven_sparse_grid_v2",
+  "event_dim": 136,
+  "grid_id_contract": "raw_nominal_int64_in_grid_ids_int64.npz",
+  "float_feature_grid_id_column": 123,
+  "missing_latent_flag_column": 135,
+  "city": "ca",
+  "seed": 42,
+  "filter": {
+    "min_valid_events_per_user": 50,
+    "min_active_days_per_user": 5,
+    "valid_event_definition": "inside_CA_bbox_and_emitted_static_grid",
+    "before_users": 4315,
+    "after_users": 1070,
+    "before_events": 241597,
+    "after_events": 172573,
+    "after_valid_events": 170997,
+    "retained_user_sha256": "bac6c51498d4967f7ee67abf6c7541fef3bdebab35507185250310cbb44c02c5"
+  },
+  "latent_path": "archive/ca_latent.npz",
+  "latent_sha256": "9165b78129234e35e60ac245584b5700c7862467ffd8472cab013e9dc6a51c1b",
+  "grid_csv_sha256": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d",
+  "local_time_contract": "iana_timezone_v1",
+  "timezone": "America/Los_Angeles",
+  "legacy_venue_and_surprisal_features": "unused_zero_columns; use_surprisal_false",
+  "user_split_counts": {
+    "train": 854,
+    "val": 105,
+    "test": 111
+  }
+}

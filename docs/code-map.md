@@ -53,8 +53,10 @@ The root `run_full_pipeline.py` orchestrates four-direction verification,
 scoring, frozen-input generation, and fresh training. `SHAPE/reproduce.py`
 implements the three recorded scoring protocols and their seed semantics.
 
-Some internal array names retain legacy identifiers. In the generation path,
-`code_distance_*` probabilities now refer only to opportunity-rank bins.
+Some internal array names retain legacy identifiers. In the fixed generation
+path, `code_distance_*` probabilities refer to opportunity-rank bins. The
+low-level sampler also retains its original physical-distance paths and the
+basic path's physical-radius candidate supplementation.
 Stage 2's public training interface accepts the fixed three-layer residual FSQ
 configuration with aggregate auxiliary objectives and no layer semantic targets.
 Old weights/codes are rejected for generation; archived predictions can still

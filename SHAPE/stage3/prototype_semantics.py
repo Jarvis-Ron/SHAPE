@@ -10,7 +10,18 @@ import json
 import math
 import numpy as np
 from SHAPE.stage3.sampler import _distance_row_km, attraction_distribution
-from SHAPE.stage3.source_semantics import _load_codes_artifact
+from SHAPE.stage3.source_semantics import _load_codes_artifact, fit_train_code_distance_semantics
+
+
+PIECEWISE_DISTANCE_EDGES_KM = np.asarray((
+    0.0, 0.25, 0.50, 0.75, 1.0,
+    2.0, 3.0, 4.0, 5.0,
+    8.75, 12.50, 16.25, 20.0,
+    40.0, 80.0, 160.0, np.inf,
+), dtype=np.float64)
+
+
+PIECEWISE_SEGMENTS_PER_PHYSICAL_BIN = 4
 
 
 ATTRACTION_SMOOTHING = 1e-6
@@ -68,6 +79,84 @@ def cohort_split_view(cohort, split):
     }
 
 
+def fit_train_piecewise_distance_semantics(
+    reference_codes, projected_grid, centers, grid_ids, base_semantics=None,
+):
+    """Expand the frozen 64x4 mass into train-empirical sub-bin densities."""
+    reference = _load_codes_artifact(reference_codes)
+    semantics = base_semantics or fit_train_code_distance_semantics(
+        reference, projected_grid, centers, grid_ids
+    )
+    offsets = np.asarray(reference["day_offsets"], dtype=np.int64)
+    splits = np.asarray(reference["day_splits"], dtype=np.str_)
+    codes = np.asarray(reference["codes"], dtype=np.int64)
+    projected_grid = np.asarray(projected_grid, dtype=np.int64)
+    vocabulary = np.asarray(grid_ids, dtype=np.int64)
+    centers = np.asarray(centers, dtype=np.float64)
+    positions = np.searchsorted(vocabulary, projected_grid)
+    safe = np.clip(positions, 0, max(0, len(vocabulary) - 1))
+    if codes.shape != (len(projected_grid), 3) \
+            or not np.all(vocabulary[safe] == projected_grid):
+        raise RuntimeError("P3-B2 distance-density arrays are not aligned")
+    codebook_size = int(semantics["codebook_size"])
+    segment_count = len(PIECEWISE_DISTANCE_EDGES_KM) - 1
+    counts = np.zeros((codebook_size, segment_count), dtype=np.int64)
+    for split, start, end in zip(splits, offsets[:-1], offsets[1:]):
+        if str(split) != "train":
+            continue
+        for event in range(int(start) + 1, int(end)):
+            distance = float(_distance_row_km(
+                centers[positions[event - 1]], centers[[positions[event]]]
+            )[0])
+            segment = int(np.searchsorted(
+                PIECEWISE_DISTANCE_EDGES_KM[1:], distance, side="right"
+            ))
+            counts[int(codes[event, 0]), min(segment, segment_count - 1)] += 1
+    population = counts.sum(axis=0)
+    physical = np.asarray(semantics["physical_bin_probabilities"], dtype=np.float64)
+    probabilities = np.zeros_like(counts, dtype=np.float64)
+    fallback_count = 0
+    for code in range(codebook_size):
+        for physical_bin in range(4):
+            left = physical_bin * PIECEWISE_SEGMENTS_PER_PHYSICAL_BIN
+            right = left + PIECEWISE_SEGMENTS_PER_PHYSICAL_BIN
+            row = counts[code, left:right].astype(np.float64)
+            if row.sum() <= 0:
+                row = population[left:right].astype(np.float64)
+                fallback_count += 1
+            if row.sum() <= 0:
+                row = np.ones(PIECEWISE_SEGMENTS_PER_PHYSICAL_BIN, dtype=np.float64)
+            row /= row.sum()
+            probabilities[code, left:right] = physical[code, physical_bin] * row
+    row_sums = probabilities.sum(axis=1)
+    if not np.allclose(row_sums, 1.0, rtol=1e-10, atol=1e-12):
+        raise RuntimeError("P3-B2 piecewise distance probabilities lost mass")
+    aggregate = probabilities.reshape(codebook_size, 4, -1).sum(axis=2)
+    if not np.allclose(aggregate, physical, rtol=1e-10, atol=1e-12):
+        raise RuntimeError("P3-B2 piecewise density changed the frozen 64x4 mass")
+    digest = hashlib.sha256(probabilities.astype(np.float64).tobytes()).hexdigest()
+    return {
+        "contract": (
+            "source_train_64x4_mass_times_four_empirical_subbins_per_"
+            "physical_bin_with_population_backoff_v1"
+        ),
+        "fit_split": "train_only",
+        "excluded_splits": ["val", "test"],
+        "first_event_excluded": True,
+        "cross_day_transitions_excluded": True,
+        "physical_bin_edges_km": [0.0, 1.0, 5.0, 20.0, "inf"],
+        "piecewise_edges_km": [
+            "inf" if np.isposinf(value) else float(value)
+            for value in PIECEWISE_DISTANCE_EDGES_KM
+        ],
+        "segments_per_physical_bin": PIECEWISE_SEGMENTS_PER_PHYSICAL_BIN,
+        "physical_bin_probabilities": physical.astype(np.float32),
+        "piecewise_probabilities": probabilities.astype(np.float32),
+        "piecewise_counts": counts,
+        "population_backoff_code_bin_count": int(fallback_count),
+        "table_sha256": digest,
+        "base_64x4_sha256": semantics["table_sha256"],
+    }
 
 
 def apply_code_distance_mixture(codes, semantics, offsets=None):

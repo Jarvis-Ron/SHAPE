@@ -1,6 +1,6 @@
 # SHAPE mechanism
 
-The current model uses opportunity-weighted rank and neutral personal-scale parameters. Layer semantic supervision and physical-distance correction have been removed. Bundled weights and reported metrics belong to the earlier mechanism and require fresh training before current generation.
+The current model uses opportunity-weighted rank and neutral personal-scale parameters. Layer semantic supervision and the additive Pareto distance-cost term have been removed. Original candidate construction is retained. Bundled weights and reported metrics belong to the earlier mechanism and require fresh training before current generation.
 
 ## Stage 1: static grid representations
 
@@ -66,14 +66,26 @@ unweighted rank exactly. Coarse edges remain `[0,1,5,20,infinity]`; fine edges
 and code backoff remain unchanged. Rows are computed with stable sorting and
 prefix sums and cached with a bound, avoiding an N×N table for California.
 
-Within the selected ring, scoring has no additional physical-distance cost.
-The source `gamma`/`xmin` fit, physical-distance kernel, continuity penalty,
-physical-radius candidate filter and target-distance quantile remapping paths
-have been removed. The sampler supports only opportunity-rank coordinates;
-an omitted runtime configuration selects the same rank-only mechanism.
-Physical geometry still determines rank ordering and static home-context
-neighbors. Distance-based evaluation metrics are unchanged. Thus the change
-does not imply complete independence from source or target geography.
+Within the selected ring, the removed additive term is
+
+```text
+-gamma * log(max(distance_km(origin, destination), xmin) / xmin)
+```
+
+The source `gamma`/`xmin` fit and its enable option are also removed. Other
+Stage 3 distance mechanisms retain their original behavior. In the basic
+retrieval path, candidates are the union of attribute top-k, the previous
+location's physical neighborhood (radius = `candidate_radius_multiplier *
+continuity_sigma`), and visit memory. The radius supplements candidates; it
+does not exclude top-k or remembered locations outside that neighborhood.
+
+Code-conditioned paths, including the fixed opportunity-rank model, already
+score the full static vocabulary and bypass that radius routine. This remains
+unchanged. The separate low-level physical-distance kernels, basic continuity
+penalty and legacy quantile-remapping helpers are retained. The fixed
+four-direction runner explicitly selects rank coordinates and uses no target
+distance calibration. Geometry still determines ranks and home contexts, and
+distance-based evaluation metrics remain unchanged.
 
 At λ=κ=0, per-resident ring tilting and per-resident beta rescaling are neutral.
 Global `revisit_beta=1` remains active. Source rank/revisit profiles are retained

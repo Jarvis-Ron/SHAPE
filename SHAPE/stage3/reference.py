@@ -178,3 +178,23 @@ def target_train_homes(artifact, projected_grid, sequence_users):
             sorted(mapping.items()), separators=(",", ":")
         ).encode()).hexdigest(),
     }
+
+
+def target_train_distances(artifact, projected_grid, centers, vocabulary):
+    """Physical same-day train transitions; target code labels are unnecessary."""
+    positions = np.searchsorted(vocabulary, projected_grid)
+    if np.any(positions >= len(vocabulary)) \
+            or not np.array_equal(vocabulary[positions], projected_grid):
+        raise ValueError("target train distances left the static vocabulary")
+    offsets = np.asarray(artifact["day_offsets"], dtype=np.int64)
+    pieces = [np.arange(start + 1, end) for split, start, end in zip(
+        artifact["day_splits"], offsets[:-1], offsets[1:]
+    ) if str(split) == "train" and end - start >= 2]
+    if not pieces:
+        raise RuntimeError("CA train has no within-day transitions for rescale")
+    right = np.concatenate(pieces)
+    left_points, right_points = centers[positions[right - 1]], centers[positions[right]]
+    north = (right_points[:, 0] - left_points[:, 0]) * 111.32
+    mean_lat = np.radians(0.5 * (left_points[:, 0] + right_points[:, 0]))
+    east = (right_points[:, 1] - left_points[:, 1]) * 111.32 * np.cos(mean_lat)
+    return np.sqrt(north * north + east * east)

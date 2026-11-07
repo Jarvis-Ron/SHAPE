@@ -126,7 +126,7 @@ def run(args):
                     test_unchanged=True, started_at=time.time(),
                     information_audit={
                         'personal_profile':'source_city_train_only',
-                        'physical_distance_correction':False,
+                        'pareto_distance_cost':False,
                         'rank_and_candidates':'complete_static_grid_vocabulary',
                         'target_train_prior':'T2_home_marginal_only',
                         'target_distance_quantiles_used':False,
@@ -267,7 +267,7 @@ def run(args):
 
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description='SHAPE: opportunity rank without physical distance correction, lambda=kappa=0')
+    parser=argparse.ArgumentParser(description='SHAPE: opportunity rank without the Pareto distance-cost term, lambda=kappa=0')
     for key in ('spec','output','device'):
         parser.add_argument('--'+key, required=True)
     parser.add_argument('--shell-repeats',type=int,default=200)

@@ -86,21 +86,22 @@ def _encode_landing_queries(model, features, device, batch_size=8192):
 @torch.inference_mode()
 def group_autoregressive_landing(
     model, target_table, source_raw, normalization, features, offsets, homes,
-    device, temperature=1.0, revisit_beta=0.5,
+    device, temperature=1.0, continuity_sigma=1.0, revisit_beta=0.5,
     group_index_step=None,
     drop_metro_frequency=False,
     target_grid_ids=None, centers=None,
-    candidate_top_k=512,
+    candidate_top_k=512, candidate_radius_multiplier=3.0,
     omitted_mass_tolerance=1e-4, omitted_mass_audit_steps=128,
     sequence_batch_size=256, return_audit=False,
     encoded_queries=None, normalized_target_tensor=None,
+    prepared_center_tensor=None, neighborhood_cache=None,
     event_batch_size=512,
-    distance_kernel_tau=1.0,
-    history_seed_grid_ids=None,
+    code_target_distance_km=None, distance_kernel_tau=1.0,
+    history_seed_grid_ids=None, distance_log_epsilon_km=0.05,
     code_distance_bin_probabilities=None,
-    rank_bin_edges=(0.0, 1.0, 5.0, 20.0, np.inf),
+    physical_distance_bin_edges_km=(0.0, 1.0, 5.0, 20.0, np.inf),
     code_distance_piecewise_probabilities=None,
-    rank_piecewise_edges=None,
+    physical_distance_piecewise_edges_km=None,
     selection_mode="argmax", selection_seed=None,
     selection_temperature=1.0,
     code_attraction_table=None, event_attraction_code=None,
@@ -109,14 +110,14 @@ def group_autoregressive_landing(
     hard_distance_ring_constraint=False,
     hard_distance_ring_seed=None,
     hard_distance_ring_empty_policy="fallback_unconstrained",
-    distance_coordinate="spatial_rank",
+    distance_coordinate="physical_km",
     prepared_spatial_rank_tensor=None,
     event_code_keys=None, same_code_revisit_beta=0.0,
     same_code_key_layers="L0", same_code_ring_bias=0.0,
     personal_ring_multiplier=None, sequence_revisit_beta=None,
 ):
-    if temperature <= 0:
-        raise ValueError("landing temperature must be positive")
+    if temperature <= 0 or continuity_sigma <= 0:
+        raise ValueError("landing temperature and continuity sigma must be positive")
     if normalized_target_tensor is None:
         target = torch.from_numpy(
             np.asarray(target_table, dtype=np.float32)
@@ -135,6 +136,8 @@ def group_autoregressive_landing(
                 or not np.isfinite(sequence_revisit_beta).all() \
                 or np.any(sequence_revisit_beta < 0):
             raise ValueError("personal beta must be sequence-aligned and nonnegative")
+    if personal_ring_multiplier is not None and not hard_distance_ring_constraint:
+        raise ValueError("personal ring tilt requires a hard rank ring")
     same_code_revisit_beta = float(same_code_revisit_beta)
     same_code_ring_bias = float(same_code_ring_bias)
     if not np.isfinite(same_code_revisit_beta) \
@@ -185,28 +188,58 @@ def group_autoregressive_landing(
             selection_uniforms.astype(np.float32)
         ).to(device)
 
-    # Physical distance kernels and costs are deliberately not supported.
-    if distance_coordinate != "spatial_rank":
-        raise ValueError("Only spatial_rank coordinates are supported; physical distance correction was removed")
-    if code_distance_bin_probabilities is None:
-        raise ValueError("Opportunity-rank bin probabilities are required")
-    mixture_distance = distance_aware = True
-    if not np.isfinite(distance_kernel_tau) or distance_kernel_tau <= 0:
-        raise ValueError("rank-kernel tau must be finite and positive")
-    rank_edges = np.asarray(
-        rank_bin_edges, dtype=np.float64
-    )
-    if rank_edges.ndim != 1 or len(rank_edges) < 3 \
-            or rank_edges[0] != 0.0 \
-            or not np.isposinf(rank_edges[-1]) \
-            or not np.all(np.isfinite(rank_edges[:-1])) \
-            or np.any(np.diff(rank_edges[:-1]) <= 0):
+    distance_coordinate = str(distance_coordinate)
+    if distance_coordinate not in ("physical_km", "spatial_rank"):
         raise ValueError(
-            "opportunity-rank bin edges must increase from zero to infinity"
+            "distance coordinate must be physical_km or spatial_rank"
         )
-    distance_bin_count = len(rank_edges) - 1
-    rank_edge_tensor = torch.as_tensor(
-        rank_edges[1:-1], dtype=torch.float32, device=device
+    mixture_distance = code_distance_bin_probabilities is not None
+    point_distance = code_target_distance_km is not None
+    if mixture_distance and point_distance:
+        raise ValueError(
+            "point and mixture code-distance semantics are mutually exclusive"
+        )
+    distance_aware = point_distance or mixture_distance
+    if point_distance and distance_coordinate != "physical_km":
+        raise ValueError(
+            "point code-distance semantics require physical_km coordinates"
+        )
+    if distance_aware and (
+            not np.isfinite(distance_kernel_tau) or distance_kernel_tau <= 0):
+        raise ValueError("distance-kernel tau must be finite and positive")
+    if point_distance:
+        code_target_distance_km = np.asarray(
+            code_target_distance_km, dtype=np.float32
+        )
+        if code_target_distance_km.shape != (len(features),) \
+                or np.any(~np.isfinite(code_target_distance_km)) \
+                or np.any(code_target_distance_km < 0):
+            raise ValueError(
+                "code-conditioned target distances must be finite, non-negative, "
+                "and event-aligned"
+            )
+        if not np.isfinite(distance_log_epsilon_km) \
+                or distance_log_epsilon_km <= 0:
+            raise ValueError("distance log epsilon must be finite and positive")
+        code_target_distance_tensor = torch.from_numpy(
+            code_target_distance_km
+        ).to(device)
+    else:
+        code_target_distance_tensor = None
+    physical_edges = np.asarray(
+        physical_distance_bin_edges_km, dtype=np.float64
+    )
+    if physical_edges.ndim != 1 or len(physical_edges) < 3 \
+            or physical_edges[0] != 0.0 \
+            or not np.isposinf(physical_edges[-1]) \
+            or not np.all(np.isfinite(physical_edges[:-1])) \
+            or np.any(np.diff(physical_edges[:-1]) <= 0):
+        raise ValueError(
+            "physical distance-bin edges must increase from zero to infinity"
+        )
+    distance_bin_count = len(physical_edges) - 1
+    physical_edge_tensor = torch.as_tensor(
+        physical_edges[1:-1], dtype=torch.float32, device=device
     )
     distance_probability_tensor = None
     hard_ring_probability_tensor = None
@@ -293,7 +326,7 @@ def group_autoregressive_landing(
                 "piecewise distance density requires the four-bin mixture"
             )
         piecewise_edges = np.asarray(
-            rank_piecewise_edges, dtype=np.float64
+            physical_distance_piecewise_edges_km, dtype=np.float64
         )
         code_distance_piecewise_probabilities = np.asarray(
             code_distance_piecewise_probabilities, dtype=np.float32
@@ -381,6 +414,14 @@ def group_autoregressive_landing(
             (ordinal // fixture_width, ordinal % fixture_width)
         ).astype(np.float32)
     centers = np.asarray(centers, dtype=np.float32)
+    if prepared_center_tensor is None:
+        center_tensor = torch.from_numpy(centers).to(device)
+    else:
+        center_tensor = prepared_center_tensor.to(
+            device=device, dtype=torch.float32
+        )
+        if tuple(center_tensor.shape) != tuple(centers.shape):
+            raise ValueError("prepared center tensor shape changed")
     spatial_rank_tensor = None
     if distance_coordinate == "spatial_rank":
         if not mixture_distance:
@@ -405,7 +446,7 @@ def group_autoregressive_landing(
                     len(vocabulary), len(vocabulary)):
                 raise ValueError("prepared spatial-rank tensor shape changed")
     predicted = np.empty(len(features), dtype=np.int64)
-    if candidate_top_k < 1 \
+    if candidate_top_k < 1 or candidate_radius_multiplier <= 0 \
             or not 0 <= omitted_mass_tolerance < 1 \
             or omitted_mass_audit_steps < 0 or sequence_batch_size < 1 \
             or event_batch_size < 1:
@@ -431,6 +472,32 @@ def group_autoregressive_landing(
             query_values, normalization, source_raw, group_index_step,
             drop_metro_frequency=drop_metro_frequency,
         )
+    # B-2: a latitude-sorted physical index provides exact 3-sigma
+    # neighbourhoods without materialising an O(|V|^2) distance matrix.
+    latitude_order = np.argsort(centers[:, 0], kind="stable")
+    sorted_latitudes = centers[latitude_order, 0]
+    radius_km = float(candidate_radius_multiplier) * float(continuity_sigma)
+    latitude_radius = radius_km / 111.32
+    neighborhood_cache = (
+        {} if neighborhood_cache is None else neighborhood_cache
+    )
+    used_neighborhoods = set()
+
+    def neighborhood(position):
+        position = int(position)
+        used_neighborhoods.add(position)
+        cached = neighborhood_cache.get(position)
+        if cached is not None:
+            return cached
+        latitude = float(centers[position, 0])
+        left = np.searchsorted(sorted_latitudes, latitude - latitude_radius, side="left")
+        right = np.searchsorted(sorted_latitudes, latitude + latitude_radius, side="right")
+        candidates = latitude_order[left:right]
+        distance = _distance_row_km(centers[position], centers[candidates])
+        cached = candidates[distance <= radius_km + 1e-9].astype(np.int64)
+        neighborhood_cache[position] = cached
+        return cached
+
     audit_masses, candidate_sizes, effective_top_ks = [], [], []
     hard_ring_target_counts = np.zeros(distance_bin_count, dtype=np.int64)
     hard_ring_realized_counts = np.zeros(distance_bin_count, dtype=np.int64)
@@ -471,9 +538,31 @@ def group_autoregressive_landing(
         base_logits = F.normalize(query_block, dim=-1) @ target.T
         base_logits *= model.logit_scale.exp().clamp(max=100.0)
         scaled_logits = base_logits / float(temperature)
-        # Score the complete map: candidate eligibility is determined by rank.
-        top_k = len(vocabulary)
-        effective_top_ks.append(int(top_k))
+        if distance_aware:
+            # The code-conditioned score is not monotone in either the
+            # attribute logit or distance.  Evaluate the complete city
+            # vocabulary so a long-jump ring can never be removed by the old
+            # 3-sigma neighbourhood and the omitted-mass audit is exact.
+            top_k = len(vocabulary)
+            effective_top_ks.append(int(top_k))
+            top_indices_np = None
+        else:
+            full_log_norm = torch.logsumexp(scaled_logits, dim=1)
+            top_k = min(int(candidate_top_k), len(vocabulary))
+            while True:
+                top_scores, top_indices = torch.topk(
+                    scaled_logits, k=top_k, dim=1, largest=True, sorted=False
+                )
+                retained = torch.exp(
+                    torch.logsumexp(top_scores, dim=1) - full_log_norm
+                )
+                attribute_omitted = 1.0 - retained
+                if float(attribute_omitted.max().item()) <= omitted_mass_tolerance \
+                        or top_k == len(vocabulary):
+                    break
+                top_k = min(len(vocabulary), top_k * 2)
+            effective_top_ks.append(int(top_k))
+            top_indices_np = top_indices.cpu().numpy()
         block_sequences = list(range(sequence_index, block_sequence_end))
         currents, memories, code_memories = {}, {}, {}
         for sequence in block_sequences:
@@ -547,7 +636,13 @@ def group_autoregressive_landing(
                         code_memory.values(), dtype=np.float32
                     )
                     same_code_trigger_count += int(len(code_positions) > 0)
-                union = np.arange(len(vocabulary), dtype=np.int64)
+                if distance_aware:
+                    union = np.arange(len(vocabulary), dtype=np.int64)
+                else:
+                    union = np.unique(np.concatenate((
+                        top_indices_np[event_row], neighborhood(currents[sequence]),
+                        memory_positions, code_positions,
+                    )))
                 candidate_rows.append(union)
                 event_rows.append(event_row)
                 memory_rows.append((memory_positions, memory_counts))
@@ -576,16 +671,29 @@ def group_autoregressive_landing(
             candidate_logits = scaled_logits[
                 event_tensor.unsqueeze(1), safe_candidates
             ]
-            origins = [currents[sequence] for sequence in active]
-            if torch.is_tensor(spatial_rank_tensor):
-                origin_tensor = torch.as_tensor(
-                    origins, dtype=torch.long, device=device,
-                ).unsqueeze(1).expand_as(safe_candidates)
-                distance_coordinate_values = spatial_rank_tensor[origin_tensor, safe_candidates]
+            candidate_centers = center_tensor[safe_candidates]
+            previous = center_tensor[torch.as_tensor(
+                [currents[sequence] for sequence in active],
+                dtype=torch.long, device=device,
+            )].unsqueeze(1)
+            mean_lat = torch.deg2rad(0.5 * (candidate_centers[..., 0] + previous[..., 0]))
+            north = (candidate_centers[..., 0] - previous[..., 0]) * 111.32
+            east = (candidate_centers[..., 1] - previous[..., 1]) \
+                * 111.32 * torch.cos(mean_lat)
+            distance = torch.sqrt(north.square() + east.square())
+            if distance_coordinate == "spatial_rank":
+                origins = [currents[sequence] for sequence in active]
+                if torch.is_tensor(spatial_rank_tensor):
+                    origin_tensor = torch.as_tensor(
+                        origins, dtype=torch.long, device=device,
+                    ).unsqueeze(1).expand_as(safe_candidates)
+                    distance_coordinate_values = spatial_rank_tensor[origin_tensor, safe_candidates]
+                else:
+                    distance_coordinate_values = torch.from_numpy(
+                        spatial_rank_tensor.gather(origins, np.maximum(padded, 0))
+                    ).to(device)
             else:
-                distance_coordinate_values = torch.from_numpy(
-                    spatial_rank_tensor.gather(origins, np.maximum(padded, 0))
-                ).to(device)
+                distance_coordinate_values = distance
             memory_bonus = torch.from_numpy(memory_bonus_values).to(device)
             active_beta = float(revisit_beta) if sequence_revisit_beta is None else torch.as_tensor(
                 sequence_revisit_beta[np.asarray(active)], device=device).unsqueeze(1)
@@ -595,7 +703,7 @@ def group_autoregressive_landing(
             distance_bins = None
             if distance_aware or attraction_enabled:
                 distance_bins = torch.bucketize(
-                    distance_coordinate_values, rank_edge_tensor, right=True
+                    distance_coordinate_values, physical_edge_tensor, right=True
                 )
             if mixture_distance:
                 if piecewise_distance:
@@ -617,11 +725,11 @@ def group_autoregressive_landing(
                 )
                 bin_cardinality = torch.zeros(
                     (len(active), density_bin_count),
-                    dtype=distance_coordinate_values.dtype, device=device,
+                    dtype=distance.dtype, device=device,
                 )
                 bin_cardinality.scatter_add_(
                     1, density_bins,
-                    torch.ones_like(distance_coordinate_values) * mask,
+                    torch.ones_like(distance, dtype=distance.dtype) * mask,
                 )
                 selected_cardinality = torch.gather(
                     bin_cardinality, 1, density_bins
@@ -631,6 +739,20 @@ def group_autoregressive_landing(
                     - torch.log(selected_cardinality)
                 ) / float(distance_kernel_tau)
                 score = candidate_logits + distance_score \
+                    + active_beta * torch.log1p(memory_bonus)
+            elif point_distance:
+                target_distance = code_target_distance_tensor[torch.as_tensor(
+                    np.asarray(event_rows, dtype=np.int64) + block_event_start,
+                    dtype=torch.long, device=device,
+                )].unsqueeze(1)
+                distance_score = -torch.abs(
+                    torch.log(distance + float(distance_log_epsilon_km))
+                    - torch.log(target_distance + float(distance_log_epsilon_km))
+                ) / float(distance_kernel_tau)
+                score = candidate_logits + distance_score \
+                    + active_beta * torch.log1p(memory_bonus)
+            else:
+                score = candidate_logits - distance / float(continuity_sigma) \
                     + active_beta * torch.log1p(memory_bonus)
             if same_code_revisit_beta > 0:
                 score = score + float(same_code_revisit_beta) * torch.log1p(
@@ -833,6 +955,32 @@ def group_autoregressive_landing(
                     # Every active grid was scored above, so this is an exact
                     # zero rather than the legacy attribute-only estimate.
                     audit_masses.append(0.0)
+                elif len(audit_masses) < int(omitted_mass_audit_steps):
+                    previous_position = currents[sequence]
+                    full_distance = torch.from_numpy(_distance_row_km(
+                        centers[previous_position], centers
+                    ).astype(np.float32)).to(device)
+                    full_memory_values = np.zeros(
+                        len(vocabulary), dtype=np.float32
+                    )
+                    memory = memories[sequence]
+                    memory_positions = np.fromiter(
+                        memory.keys(), dtype=np.int64
+                    )
+                    memory_counts = np.fromiter(
+                        memory.values(), dtype=np.float32
+                    )
+                    full_memory_values[memory_positions] = memory_counts
+                    full_memory = torch.from_numpy(full_memory_values).to(device)
+                    full_score = scaled_logits[event_rows[row_index]] \
+                        - full_distance / float(continuity_sigma) \
+                        + (float(revisit_beta) if sequence_revisit_beta is None
+                           else float(sequence_revisit_beta[sequence])) * torch.log1p(full_memory)
+                    probability = torch.softmax(full_score, dim=0)
+                    retained_mass = probability[torch.as_tensor(
+                        candidate_rows[row_index], dtype=torch.long, device=device
+                    )].sum()
+                    audit_masses.append(float((1.0 - retained_mass).clamp(min=0).item()))
                 currents[sequence] = chosen
                 memories[sequence][chosen] = memories[sequence].get(chosen, 0.0) + 1.0
                 if same_code_keys is not None:
@@ -843,13 +991,17 @@ def group_autoregressive_landing(
         sequence_index = block_sequence_end
     omitted_max = max(audit_masses, default=0.0)
     audit = {
-        "contract": "full_vocabulary_opportunity_rank_revisit_v2",
+        "contract": "attribute_topk_plus_previous_3sigma_plus_revisit_memory_v1",
         "attribute_scoring": "batched_H_at_A_transpose",
         "autoregression": "relative_step_user_batch_with_padding_and_mask",
         "requested_attribute_top_k": int(candidate_top_k),
         "effective_attribute_top_k_max": max(effective_top_ks, default=0),
         "candidate_size_mean": float(np.mean(candidate_sizes)) if candidate_sizes else 0.0,
         "candidate_size_max": max(candidate_sizes, default=0),
+        "physical_neighbor_radius_sigma": float(candidate_radius_multiplier),
+        "physical_neighbor_cache_entries": len(used_neighborhoods),
+        "physical_radius_candidates_used": bool(used_neighborhoods),
+        "pareto_distance_cost": False,
         "omitted_probability_mass_exact_audit_steps": len(audit_masses),
         "omitted_probability_mass_max": float(omitted_max),
         "omitted_probability_mass_mean": float(np.mean(audit_masses)) if audit_masses else 0.0,
@@ -897,35 +1049,54 @@ def group_autoregressive_landing(
             ),
         }
     if distance_aware:
-        score_formula = (
-            "candidate_logits + log(p(code_rank_segment)/segment_cardinality)/tau + revisit"
-            if piecewise_distance else
-            "candidate_logits + log(p(code_rank_bin)/bin_cardinality)/tau + revisit"
-        )
+        if mixture_distance:
+            score_formula = (
+                "candidate_logits + log(p(code_distance_segment)/"
+                "segment_cardinality)/tau + revisit"
+                if piecewise_distance else
+                "candidate_logits + log(p(code_bin)/bin_cardinality)/tau + "
+                "revisit"
+            )
+        else:
+            score_formula = (
+                "candidate_logits - abs(log(distance+epsilon)-"
+                "log(code_target+epsilon))/tau + revisit"
+            )
         if attraction_enabled:
             score_formula += " + normalized_attraction"
         if same_code_revisit_beta > 0:
             score_formula += " + same_code_beta*log1p(daily_code_count)"
         audit.update({
-            "contract": "full_vocabulary_opportunity_rank_mixture_revisit_v2",
-            "distance_mode": "source_train_layer0_code_conditioned_spatial_rank_mixture",
-            "physical_distance_correction": False,
+            "contract": (
+                "full_vocabulary_code_distance_mixture_revisit_v2"
+                if mixture_distance else
+                "full_vocabulary_code_distance_kernel_revisit_v1"
+            ),
+            "distance_mode": (
+                (
+                    "source_train_layer0_code_conditioned_spatial_rank_mixture"
+                    if distance_coordinate == "spatial_rank" else
+                    "source_train_layer0_code_conditioned_physical_bin_mixture"
+                ) if mixture_distance else
+                "source_train_layer0_code_conditioned_log_distance_kernel"
+            ),
             "distance_coordinate": distance_coordinate,
             "distance_kernel_tau": float(distance_kernel_tau),
+            "distance_log_epsilon_km": float(distance_log_epsilon_km),
             "score_formula": score_formula,
-            "rank_bin_edges": [
+            "physical_distance_bin_edges_km": [
                 "inf" if np.isposinf(value) else float(value)
-                for value in rank_edges
+                for value in physical_edges
             ],
             "distance_bin_edges": [
                 "inf" if np.isposinf(value) else float(value)
-                for value in rank_edges
+                for value in physical_edges
             ],
             "within_bin_distance_density": (
                 "source_train_empirical_piecewise_then_uniform_grid_support"
                 if piecewise_distance else "uniform_grid_support_within_4_bins"
             ),
-            "rank_piecewise_edges": (
+            "physical_distance_piecewise_edges_km": (
                 None if piecewise_edges is None else [
                     "inf" if np.isposinf(value) else float(value)
                     for value in piecewise_edges
@@ -954,12 +1125,22 @@ def group_autoregressive_landing(
         if hard_distance_ring_constraint:
             target_total = int(hard_ring_target_counts.sum())
             realized_total = int(hard_ring_realized_counts.sum())
-            ring_contract = (
-                "full_vocabulary_hard_spatial_rank_ring_with_adjacent_band_expansion_v2"
-                if hard_distance_ring_empty_policy == "expand_adjacent"
-                else "full_vocabulary_sampled_hard_spatial_rank_ring_v1"
-            )
-            sampled_ring = "sampled_spatial_rank_bin"
+            if distance_coordinate == "physical_km":
+                ring_contract = (
+                    "full_vocabulary_hard_physical_ring_with_adjacent_"
+                    "band_expansion_v2"
+                    if hard_distance_ring_empty_policy == "expand_adjacent"
+                    else "full_vocabulary_sampled_hard_physical_ring_v1"
+                )
+                sampled_ring = "sampled_physical_bin"
+            else:
+                ring_contract = (
+                    "full_vocabulary_hard_spatial_rank_ring_with_adjacent_"
+                    "band_expansion_v2"
+                    if hard_distance_ring_empty_policy == "expand_adjacent"
+                    else "full_vocabulary_sampled_hard_spatial_rank_ring_v1"
+                )
+                sampled_ring = "sampled_spatial_rank_bin"
             audit.update({
                 "contract": ring_contract,
                 "score_formula": (
@@ -1031,6 +1212,9 @@ def group_autoregressive_landing(
     if attraction_enabled:
         audit.update({
             "attraction_contract": (
+                "code_conditioned_map_only_within_physical_bin_"
+                "likelihood_ratio_v1"
+                if distance_coordinate == "physical_km" else
                 "code_conditioned_map_only_within_spatial_rank_bin_"
                 "likelihood_ratio_v1"
             ),
@@ -1038,7 +1222,9 @@ def group_autoregressive_landing(
             "attraction_strength": float(attraction_strength),
             "attraction_epsilon": float(attraction_epsilon),
             "attraction_normalization": (
-                "per_event_per_current_grid_per_spatial_rank_bin_unit_mean"
+                "per_event_per_current_grid_per_%s_bin_unit_mean"
+                % ("physical" if distance_coordinate == "physical_km"
+                   else "spatial_rank")
             ),
             "attraction_changes_distance_bin_mass_directly": False,
         })

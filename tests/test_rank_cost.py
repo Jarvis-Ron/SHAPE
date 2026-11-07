@@ -107,7 +107,7 @@ def test_full_landing_neutral_profiles_and_lazy_rank_preserve_predictions():
           np.array([0,4,8]),np.array([0,1]),torch.device('cpu'))
     kwargs=dict(revisit_beta=1.,target_grid_ids=np.arange(5),centers=centers,
                 code_distance_bin_probabilities=probability,distance_coordinate='spatial_rank',
-                rank_bin_edges=(0,1,5,20,np.inf),
+                physical_distance_bin_edges_km=(0,1,5,20,np.inf),
                 selection_mode='sample',selection_seed=42,hard_distance_ring_constraint=True,
                 hard_distance_ring_empty_policy='expand_adjacent',return_audit=True)
     original,audit=group_autoregressive_landing(*args,**kwargs,
@@ -131,21 +131,69 @@ def test_sampling_is_invariant_to_distance_scale_with_the_same_opportunity_order
           np.array([0,4,8]),np.array([0,0]),torch.device('cpu'))
     kwargs=dict(revisit_beta=0.,target_grid_ids=np.arange(3),
         code_distance_bin_probabilities=np.tile([0.,1.,0.,0.],(8,1)),
-        distance_coordinate='spatial_rank',rank_bin_edges=(0,1,5,20,np.inf),
+        distance_coordinate='spatial_rank',physical_distance_bin_edges_km=(0,1,5,20,np.inf),
         selection_mode='sample',selection_seed=42,hard_distance_ring_constraint=True,
         hard_distance_ring_empty_policy='expand_adjacent',return_audit=True)
     baseline,audit=group_autoregressive_landing(*args,**kwargs,centers=centers,
+        candidate_top_k=1,candidate_radius_multiplier=.001,
         prepared_spatial_rank_tensor=SpatialRankIndex(centers))
     scaled,check=group_autoregressive_landing(*args,**kwargs,centers=centers*10,
+        candidate_top_k=1,candidate_radius_multiplier=1000.,
         prepared_spatial_rank_tensor=SpatialRankIndex(centers*10))
     np.testing.assert_array_equal(scaled, baseline)
     assert audit['hard_distance_ring_pass'] and check['hard_distance_ring_pass']
-    assert audit['physical_distance_correction'] is False
-    with pytest.raises(ValueError,match="Only spatial_rank"):
-        group_autoregressive_landing(*args,**dict(kwargs,distance_coordinate='physical_km'),centers=centers)
-    for option in ('distance_cost_gamma','distance_cost_xmin_km','code_target_distance_km'):
+    assert audit['pareto_distance_cost'] is False
+    for report in (audit,check):
+        assert report['candidate_size_max']==len(centers)
+        assert report['physical_radius_candidates_used'] is False
+        assert report['physical_neighbor_cache_entries']==0
+    for option in ('distance_cost_gamma','distance_cost_xmin_km'):
         with pytest.raises(TypeError):
             group_autoregressive_landing(*args,**kwargs,centers=centers,**{option:1.0})
+
+
+@pytest.mark.parametrize('radius_km,sigma,chosen,size,neighbors', [
+    (.25,1.,0,2,[0]),
+    (2.,1.,1,3,[0,1]),
+    (.25,100.,3,2,[0]),
+])
+def test_radius_augments_topk_and_memory_without_becoming_a_hard_cap(
+        radius_km,sigma,chosen,size,neighbors):
+    # Grid 3 has the best attribute match but lies ~20 km away. Grid 1 is
+    # ~1 km from home and enters only through the physical neighborhood.
+    # A large continuity scale lets grid 3 win despite being outside radius.
+    centers=np.array([[0,0],[0,.009],[0,.09],[0,.18]],dtype=np.float32)
+    table=np.array([[-1,-1],[1,0],[0,-1],[1,1]],dtype=np.float32)
+    cache={}
+    prediction,audit=group_autoregressive_landing(
+        _FlatLanding(),table,np.zeros((4,20),dtype=np.float32),{},
+        np.ones((2,2),dtype=np.float32),np.array([0,2]),np.array([0]),torch.device('cpu'),
+        centers=centers,target_grid_ids=np.arange(4),revisit_beta=0.,
+        continuity_sigma=sigma,candidate_top_k=1,
+        candidate_radius_multiplier=radius_km/sigma,neighborhood_cache=cache,
+        omitted_mass_tolerance=.95,return_audit=True)
+    assert prediction.tolist()==[0,chosen]
+    assert sorted(cache[0].tolist())==neighbors
+    assert audit['candidate_size_max']==size
+    assert audit['effective_attribute_top_k_max']==1
+    assert audit['physical_radius_candidates_used'] is True
+    assert audit['pareto_distance_cost'] is False
+
+
+@pytest.mark.parametrize('mode',['point','physical_mixture'])
+def test_existing_physical_kernels_remain_separate_from_removed_pareto_cost(mode):
+    centers=np.array([[0,0],[0,.009],[0,.09],[0,.18]],dtype=np.float32)
+    options=(dict(code_target_distance_km=np.array([0.,1.,0.,10.])) if mode=='point' else
+        dict(code_distance_bin_probabilities=np.array([[1,0,0,0],[0,1,0,0],[1,0,0,0],[0,0,1,0]],dtype=np.float32),
+            hard_distance_ring_constraint=True,selection_mode='sample',selection_seed=42))
+    prediction,audit=group_autoregressive_landing(
+        _FlatLanding(),np.ones((4,2),dtype=np.float32),np.zeros((4,20),dtype=np.float32),{},
+        np.ones((4,2),dtype=np.float32),np.array([0,2,4]),np.array([0,0]),torch.device('cpu'),
+        centers=centers,target_grid_ids=np.arange(4),revisit_beta=0.,
+        distance_coordinate='physical_km',return_audit=True,**options)
+    assert prediction.tolist()==[0,1,0,2]
+    assert audit['pareto_distance_cost'] is False
+    assert audit['physical_radius_candidates_used'] is False
 
 
 def test_source_profiles_need_no_positive_physical_jumps():
@@ -166,7 +214,7 @@ def test_personal_tilt_selects_different_rings_for_two_residents():
     prediction,audit=group_autoregressive_landing(*args,revisit_beta=0.,
         target_grid_ids=np.arange(3),centers=centers,
         code_distance_bin_probabilities=np.tile([.5,.5,0.,0.],(8,1)),
-        distance_coordinate='spatial_rank',rank_bin_edges=(0,1,5,20,np.inf),
+        distance_coordinate='spatial_rank',physical_distance_bin_edges_km=(0,1,5,20,np.inf),
         selection_mode='sample',selection_seed=42,hard_distance_ring_constraint=True,
         hard_distance_ring_empty_policy='expand_adjacent',return_audit=True,
         personal_ring_multiplier=multiplier,prepared_spatial_rank_tensor=SpatialRankIndex(centers))

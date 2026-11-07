@@ -51,7 +51,7 @@
     "target_checkins_for_generation": "population_home_quota_only",
     "target_distance_calibration": false,
     "target_test": "unchanged_matched_person_day_evaluation_shell_only",
-    "physical_distance_correction": false,
+    "pareto_distance_cost": false,
     "tokenizer_training_contract": "residual_fsq_no_layer_semantics_v2"
   }
 }

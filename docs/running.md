@@ -19,8 +19,16 @@ Changing metadata on old weights is not a substitute for retraining: export
 checks the tokenizer training contract and Stage 3 binds the new codes to the
 retrained landing head. Removed semantic supervision CLI/config options raise
 an error, including a zero semantic coefficient; there is no enable switch.
-The old `cost` configuration key and physical-distance sampler arguments are
-also unsupported. Geometry for opportunity rank and distance metrics remain.
+The old `cost` configuration key and the sampler's `distance_cost_gamma` and
+`distance_cost_xmin_km` arguments are unsupported. Radius arguments, the basic
+continuity kernel and other physical-distance sampler paths remain available.
+
+The fixed runner passes `personal_scale=FIXED_VARIANT` explicitly and keeps
+full-vocabulary opportunity-rank generation without target-distance calibration.
+The basic sampler's radius routine instead adds nearby grids to attribute top-k
+and visit-memory candidates. It is not a global trip-distance cap. The separate
+legacy low-level runtime with `personal_scale=None` retains target-training
+distance quantile calibration; it is not the fixed runner's generation protocol.
 
 For CA-source training, `--prepared-events` skips static training and event preparation, using the bundled historical event features instead. This is only available for one CA-source direction at a time. Fresh static preparation uses the complete static vocabulary and does not reconstruct the older source-active embeddings. The raw-to-training path and frozen-input replay therefore answer different reproduction questions.
 

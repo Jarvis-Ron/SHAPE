@@ -2,19 +2,29 @@
 
 ## Current implementation checks
 
-`python -m pytest -q`: **77 passed** on CPU. Python compilation and the
+`python -m pytest -q`: **82 passed** on CPU. Python compilation and the
 four-direction training-plan dry run also passed. No GPU run was performed.
 
 The regression suite checks removed semantic options and legacy checkpoint
 rejection, residual-projection gradients, the exact training-loss components,
-rank-preserving distance-scale invariance, removal of physical-cost sampler
+rank-preserving distance-scale invariance, removal of Pareto-cost sampler
 arguments, stationary source profiles, and historical source-code rejection
-before generation reads target data.
+before generation reads target data. Candidate regressions exercise radius
+supplementation, top-k destinations outside the radius, and unchanged
+full-vocabulary rank generation. Separate checks cover retained physical kernels.
+
+The revised sampler was also compared directly with revision
+`fb1f69aa79073e0769a7686fbba6b4eedcde349f` using `distance_cost_gamma=0`.
+All 45 combinations of five sampler paths (basic, point, physical mixture,
+coarse rank and piecewise rank), three seeds and three radius multipliers
+produced identical trajectories and pre-existing audit fields. Enabling
+`gamma=2` in the original coarse-rank control changed outputs, confirming that
+the fixtures distinguish the removed term from candidate construction.
 
 A synthetic integration test trains a small tokenizer for one epoch, saves and
 reloads it, exports 72 events, trains a landing head for one epoch, and generates
 trajectories on the static Paris grid with a synthetic aggregate home quota.
-It runs the default runtime configuration through the production sampler and
+It passes the fixed runner's explicit rank configuration through the production sampler and
 checks target vocabulary and output alignment. This is an interface and
 mechanism check, not a research accuracy experiment. No full-data retraining
 or performance evaluation of the changed model has been executed.
@@ -22,7 +32,7 @@ or performance evaluation of the changed model has been executed.
 ## Historical release verification
 
 The checks below describe the earlier release, before removing layer semantic
-supervision and physical distance correction. Their numerical receipts and
+supervision and the additive Pareto distance cost. Their numerical receipts and
 bundled artifacts are retained; they do not validate the changed model's scores.
 
 The packaged native scorer recomputed all four historical rows from the supplied

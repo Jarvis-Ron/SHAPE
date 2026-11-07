@@ -29,7 +29,7 @@ JSD uses base-2 logarithms. Shell evaluation assigns source donor days to target
 - Generated trajectories follow encoded observed source activities and timing; this release has no separate behavior-code generator.
 - The three shell experiments initialize from target training-day modal homes for reference-eligible users. Only training grid/user/split arrays enter the home extractor; the sampler receives the aggregate marginal and static context. Eligibility uses existing train/test split membership.
 - CA → NYC generation reads an exported aggregate home quota over all 1,083 NYC training users. It does not open the target reference during generation; evaluation reads it afterward.
-- Current code-conditioned opportunity-rank/attraction semantics use source training data. Physical distance cost and target-distance calibration have been removed; the archived results had a source-fitted distance cost. Revisit memory uses generated past visits. Target test locations are scored after generation. Matched-shell evaluation separately uses target user/day structure.
+- Current code-conditioned opportunity-rank/attraction semantics use source training data. The additive Pareto distance cost has been removed; the archived results had that source-fitted term. The fixed runner continues to use no target-distance calibration. Separate legacy calibration helpers remain outside that fixed protocol. Revisit memory uses generated past visits. Target test locations are scored after generation. Matched-shell evaluation separately uses target user/day structure.
 
 Here, zero-shot denotes no target check-in training of the behavioral model. Target population marginals and evaluation shells are additional information and are reported explicitly.
 

@@ -124,7 +124,7 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
     from SHAPE.stage3.source_cohort import load_g0_cohort
     from SHAPE.stage3.runtime import build_source_payloads, prepare_transfer_runtime
     from SHAPE.stage3.context_memory import _run_e2_tasks
-    from SHAPE.stage3.tasks import load_contract, make_x1_hra_tasks
+    from SHAPE.stage3.tasks import FIXED_VARIANT, load_contract, make_x1_hra_tasks
     cohort=load_g0_cohort(codes,{},None,require_complete_user_splits=True,reference_only=True)
     payloads=build_source_payloads(cohort)
     contract=load_contract()
@@ -141,10 +141,10 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
              'attraction_mode','attraction_strength')}}})
     transferred=prepare_transfer_runtime(source,dict(selected_beta=1.,binding={}),cohort,
         None,None,target_path,['cpu'],source_city='nyc',target_city='paris',
-        target_home_quota=quota,sampling_seeds=(42,))
+        personal_scale=dict(FIXED_VARIANT),target_home_quota=quota,sampling_seeds=(42,))
     audit=transferred['provenance']
-    assert audit['physical_distance_cost'] is False
-    assert audit['target_distance_calibration'] is False
+    assert audit['pareto_distance_cost'] is False
+    assert audit['target_train_distance_quantiles_used_by_distance_scale'] is False
     assert audit['target_train_statistics']==['population_home_marginal']
     tasks=make_x1_hra_tasks(payloads,contract)[:1]
     results=_run_e2_tasks(tasks,payloads,transferred,stage_label='rank-only-fixture',

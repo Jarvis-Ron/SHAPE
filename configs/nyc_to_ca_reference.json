@@ -28,6 +28,6 @@
   "archived_predictions": "../inputs/nyc_to_ca/predictions.npz",
   "original_shell_plans": "../inputs/nyc_to_ca/shell_plans.npz",
   "shell_length_policy": "common-support",
-  "mechanism": "shape_no_layer_semantics_rank_only_v2",
+  "mechanism": "shape_no_layer_semantics_no_aux_rank_only_v3",
   "bundled_artifacts": "historical_semantic_supervision_and_distance_cost"
 }

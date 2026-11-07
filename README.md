@@ -1,6 +1,6 @@
 # SHAPE
 
-Research code for cross-city trajectory generation. SHAPE transfers source-city activity sequences to a target city's static grid using activity prototypes, opportunity-weighted rings, and generated-visit memory. The current implementation removes layer-specific semantic supervision from residual FSQ and the additive Pareto distance-cost term from Stage 3. Original candidate selection, including the physical-radius neighborhood in the basic retrieval path, is retained.
+Research code for cross-city trajectory generation. SHAPE transfers source-city activity sequences to a target city's static grid using activity prototypes, opportunity-weighted rings, and generated-visit memory. The current implementation removes layer-specific semantic supervision and jump/POI auxiliary supervision from residual FSQ, and the additive Pareto distance-cost term from Stage 3. Original candidate selection, including the physical-radius neighborhood in the basic retrieval path, is retained.
 
 **The bundled weights, predictions, loss histories and four reported rows are historical artifacts from the earlier model with layer semantic supervision and distance cost.** They are retained for scoring and verification. Train new Stage 2 and landing checkpoints to use the current model; old tokenizer checkpoints and source-code archives are rejected by training/export/generation rather than silently relabeled.
 
@@ -57,7 +57,7 @@ bash run_full_pipeline.sh --mode train --direction all --device cuda:0 --output 
 bash run_full_pipeline.sh --mode train --direction ca_to_paris --prepared-events --device cuda:0 --output results/ca_prepared
 ```
 
-Fresh training produces the current model, with no layer semantic loss or semantic warm-start and no Stage 3 Pareto distance cost. The fixed four-direction runner retains opportunity-rank generation without target-distance calibration. Its Stage 1 uses the complete static map vocabulary. Historical CA event embeddings use a smaller source cohort and can still be used to train a new tokenizer with `--prepared-events`. Full-data retraining and performance evaluation of the changed model have not been run; the table above is not its result.
+Fresh training produces the current model, with no layer semantic loss, semantic warm-start, jump/POI auxiliary losses, or Stage 3 Pareto distance cost. The fixed four-direction runner retains opportunity-rank generation without target-distance calibration. Its Stage 1 uses the complete static map vocabulary. Historical CA event embeddings use a smaller source cohort and can still be used to train a new tokenizer with `--prepared-events`. The table above remains the archived baseline; separately executed experiments must record their current source revision, training contract, inputs and evaluation protocol.
 
 To sample again after fresh training, use the resulting bound spec:
 
@@ -86,7 +86,7 @@ The NYC → Paris landing curve is a new seed-42 rerun on the frozen source code
 | Activity prototypes | Source events → three residual FSQ codes and reconstructed features | `SHAPE/stage2/` |
 | Spatial generation | Source behavior, target map, home marginal → target-grid trajectories | `SHAPE/stage3/` |
 
-The fixed model uses opportunity-weighted rank with personal-scale parameters λ = κ = 0 and global generated-visit memory. Physical distance is used to order static opportunities, not as an additional candidate penalty or a target-trajectory calibration. Stage 2 retains reconstruction, quantization, temporal/future objectives and aggregate jump/POI auxiliary losses; it assigns no prescribed semantic targets to individual quantizer layers. See [method details](docs/method.md) and [the code map](docs/code-map.md). `run_full_pipeline.py` is the four-direction entry point; `SHAPE/reproduce.py` performs generation and evaluation. New tokenizer/source archives carry the `residual_fsq_no_layer_semantics_v2` training contract.
+The fixed model uses opportunity-weighted rank with personal-scale parameters λ = κ = 0 and global generated-visit memory. Physical distance is used to order static opportunities, not as an additional candidate penalty or a target-trajectory calibration. Stage 2 learns from reconstruction, quantization regularization and temporal/future objectives. Jump, POI and time auxiliary weights are zero and their classifier heads are absent; no prescribed semantic targets are assigned to individual quantizer layers. See [method details](docs/method.md) and [the code map](docs/code-map.md). `run_full_pipeline.py` is the four-direction entry point; `SHAPE/reproduce.py` performs generation and evaluation. New tokenizer/source archives carry the `residual_fsq_no_layer_semantics_no_aux_v3` training contract.
 
 The removed Stage 3 term is `-gamma * log(max(distance_km, xmin) / xmin)`.
 The basic sampler still combines attribute top-k candidates, a physical-radius

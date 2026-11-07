@@ -35,7 +35,7 @@ Here, zero-shot denotes no target check-in training of the behavioral model. Tar
 
 ## Artifact formats
 
-`source_codes.npz` includes source train/validation/test event codes, reconstructed features, grid IDs, minutes, offsets, dates, users, split labels, and tokenizer binding. New exports additionally require `tokenizer_training_contract=residual_fsq_no_layer_semantics_v2`. `landing.pth` binds the learned query head to that source archive. The new generation path rejects bundled archives without that contract; historical scoring does not require it.
+`source_codes.npz` includes source train/validation/test event codes, reconstructed features, grid IDs, minutes, offsets, dates, users, split labels, and tokenizer binding. New exports additionally require `tokenizer_training_contract=residual_fsq_no_layer_semantics_no_aux_v3`. `landing.pth` binds the learned query head to that source archive. The new generation path rejects bundled archives without that contract; historical scoring does not require it.
 
 `target_reference.npz` contains exactly eight arrays: `grid_id`, `minute`, `day_offsets`, `day_user_ids`, `day_dates`, `day_splits`, `event_user_ids`, `event_splits`. Target tokenizer features are unnecessary.
 

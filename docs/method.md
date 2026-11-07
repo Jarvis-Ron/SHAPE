@@ -1,6 +1,6 @@
 # SHAPE mechanism
 
-The current model uses opportunity-weighted rank and neutral personal-scale parameters. Layer semantic supervision and the additive Pareto distance-cost term have been removed. Original candidate construction is retained. Bundled weights and reported metrics belong to the earlier mechanism and require fresh training before current generation.
+The current model uses opportunity-weighted rank and neutral personal-scale parameters. Layer semantic supervision, jump/POI auxiliary supervision and the additive Pareto distance-cost term have been removed. Original candidate construction is retained. Bundled weights and reported metrics belong to the earlier mechanism and require fresh training before current generation.
 
 ## Stage 1: static grid representations
 
@@ -21,10 +21,11 @@ Each FSQ layer receives a learned projection of the remaining shared latent
 residual. There is no feature-path-to-layer assignment, layer semantic MSE,
 semantic projection warm-start, or layer-targeted auxiliary routing. Layers
 learn jointly from reconstruction, quantization regularization, temporal/future
-objectives and the aggregate jump/POI auxiliary losses (weights 0.125/0.075).
-These aggregate losses still supply source-event supervision; removing the
-layer objective does not establish that individual layers discover particular
-semantics. Such an interpretation requires separate evidence.
+objectives. Jump, POI and time auxiliary weights are zero; production training
+and checkpoint loading reject auxiliary classifier parameters. Earlier v2
+checkpoints with jump/POI auxiliary supervision must be retrained. POI and
+relative-jump inputs and reconstruction targets remain available; this change
+does not remove those features or prove particular emergent layer semantics.
 
 The fixed training entry point uses no time auxiliary, no encoder surprisal,
 IID pre-quantization noise with sigma 0.1, seed 42, 50 epochs, batch size 196 and
@@ -36,7 +37,7 @@ Venue Word2Vec columns are excluded by the encoder; fresh preprocessing leaves
 them zero. A regression test perturbs every excluded column and checks that
 the encoder output remains exactly equal. Historical predictions remain usable
 for evaluation. Tokenizer loading, source export, landing training and generation
-require the new `residual_fsq_no_layer_semantics_v2` training contract.
+require the new `residual_fsq_no_layer_semantics_no_aux_v3` training contract.
 
 ## Stage 3: target trajectory generation
 

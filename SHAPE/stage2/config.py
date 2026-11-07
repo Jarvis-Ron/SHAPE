@@ -3,7 +3,7 @@
 Only dependencies of the retained SHAPE stages are included. See docs/code-map.md.
 """
 
-TOKENIZER_TRAINING_CONTRACT = "residual_fsq_no_layer_semantics_v2"
+TOKENIZER_TRAINING_CONTRACT = "residual_fsq_no_layer_semantics_no_aux_v3"
 REMOVED_SEMANTIC_OPTIONS = frozenset({
     "injection_mode", "semantic_loss_weight",
     "semantic_warm_start_steps", "semantic_warm_start_lr",
@@ -17,6 +17,17 @@ def require_no_semantic_options(config):
                          + ", ".join(sorted(removed)))
     if config.get("aux_routing", "aggregate") != "aggregate":
         raise ValueError("Layer-targeted auxiliary options were removed; use aggregate objectives")
+
+
+def require_no_auxiliary_supervision(config, state_dict=None):
+    """Keep production training/loading separate from auxiliary research fixtures."""
+    for name in ("jump_aux_weight", "poi_aux_weight", "time_aux_weight"):
+        if float(config.get(name, 0.0)) != 0.0:
+            raise ValueError("Current SHAPE requires zero auxiliary loss weights: " + name)
+    if state_dict is not None and any(
+            name.startswith(("jump_head.", "poi_head.", "time_head."))
+            for name in state_dict):
+        raise ValueError("Current SHAPE requires no auxiliary head parameters; retrain Stage 2")
 
 
 CITY_DATA_DIRS = {
@@ -86,11 +97,10 @@ MODULE2_CONFIG = {
     "entropy_tau_end": 0.15,
     "entropy_tau_anneal_start_epoch": 5,
     "entropy_tau_anneal_end_epoch": 15,
-    # Fixed source jump-bin auxiliary objective in the reference checkpoint.
-    "jump_aux_weight": 0.125,
+    # Auxiliary classifiers are disabled in current production training.
+    "jump_aux_weight": 0.0,
     "jump_bin_thresholds": [1e-8, 0.05, 0.15, 0.30],
-    # Fixed 13-category POI auxiliary supervision from source events.
-    "poi_aux_weight": 0.075,
+    "poi_aux_weight": 0.0,
     "num_poi_categories": 13,
     # Time auxiliary supervision is disabled in the fixed SHAPE checkpoint.
     "time_aux_weight": 0.0,

@@ -30,6 +30,6 @@
     "home_quota": "96e920110e9517f15fa689d0767cb7be6cc1623e7e650c6d07763f0c11ff2eec"
   },
   "archived_predictions": "../inputs/ca_to_nyc/predictions.npz",
-  "mechanism": "shape_no_layer_semantics_rank_only_v2",
+  "mechanism": "shape_no_layer_semantics_no_aux_rank_only_v3",
   "bundled_artifacts": "historical_semantic_supervision_and_distance_cost"
 }

@@ -53,7 +53,7 @@ def require_current_tokenizer_training(payload):
     if contract is None or scalar(contract) != TOKENIZER_TRAINING_CONTRACT:
         raise ValueError(
             "Legacy source codes do not satisfy the tokenizer training contract. "
-            "Retrain Stage 2 without layer semantic supervision, export fresh "
+            "Retrain Stage 2 without layer semantic or auxiliary supervision, export fresh "
             "source codes and retrain the landing head (full runner: --mode train). "
             "Historical predictions remain available for --mode score/verify."
         )

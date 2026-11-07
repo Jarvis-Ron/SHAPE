@@ -36,8 +36,8 @@ def test_raw_paths_resolve_inside_repository_and_overrides_merge(tmp_path, monke
 def test_public_training_cli_only_accepts_fixed_mechanism():
     config=build_training_config(parse_args([]))
     assert config['quantizer_types']==['fsq']*3
-    assert config['jump_aux_weight']==.125
-    assert config['poi_aux_weight']==.075
+    assert config['jump_aux_weight']==0
+    assert config['poi_aux_weight']==0
     assert config['encoder_perturb_sigma']==.1
     assert config['max_attention_cells']==8388608
     for option in ('--injection-mode', '--semantic-loss-weight', '--semantic-warm-start-steps'):
@@ -45,8 +45,9 @@ def test_public_training_cli_only_accepts_fixed_mechanism():
             parse_args([option, '0'])
     with pytest.raises(SystemExit):
         parse_args(['--quantizer-type','ema'])
-    with pytest.raises(SystemExit):
-        parse_args(['--jump-aux-weight','0'])
+    for option, value in (('--jump-aux-weight', '.125'), ('--poi-aux-weight', '.075')):
+        with pytest.raises(SystemExit):
+            parse_args([option, value])
 
 
 def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkeypatch):
@@ -78,6 +79,7 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
                 fsq_require_all_buckets=False,
                 save_dir=str(tmp_path),model_name='tokenizer.pth')
     tokenizer=build_tokenizer(config)
+    assert tokenizer.jump_head is None and tokenizer.poi_head is None
     checkpoint=tmp_path/'tokenizer.pth'
     def loader(user):
         return DataLoader([dict(x=torch.from_numpy(sequences[user]),
@@ -86,13 +88,15 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
     assert len(tokenizer_history['train_loss'])==1
     assert 'train_semantic' not in tokenizer_history
     assert 'val_semantic' not in tokenizer_history
+    for name in ('train_jump_aux', 'val_jump_aux', 'train_poi_aux', 'val_poi_aux'):
+        assert tokenizer_history[name] == [0.0]
     # Calendar recovery is isolated from real private check-ins; all export,
     # serialization, feature validation and landing training below are real.
     monkeypatch.setattr(exporter,'load_raw_calendar',lambda *a,**kw:calendar)
     codes=tmp_path/'source_codes.npz'
     receipt=exporter.prepare_codes(checkpoint,data,None,codes,torch.device('cpu'),
         batch_size=1,source_city='nyc',grid_csv=grid_path,
-        expected_jump_aux_weight=.125,expected_poi_aux_weight=.075,
+        expected_jump_aux_weight=0,expected_poi_aux_weight=0,
         expected_time_aux_weight=0,require_no_time_aux=True)
     archive=load_npz(codes)
     assert receipt['event_count']==72

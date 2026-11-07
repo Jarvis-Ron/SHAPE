@@ -6,7 +6,7 @@ Only dependencies of the retained SHAPE stages are included. See docs/code-map.m
 from __future__ import annotations
 import re
 import torch
-from .config import MODULE2_CONFIG, TOKENIZER_TRAINING_CONTRACT, require_no_semantic_options
+from .config import MODULE2_CONFIG, TOKENIZER_TRAINING_CONTRACT, require_no_semantic_options, require_no_auxiliary_supervision
 from .model import RQVAETransformerExtractor
 
 
@@ -234,8 +234,9 @@ def load_tokenizer(checkpoint_path, device, quantizer_type=None):
             .format(checkpoint_contract, ENCODER_FEATURE_CONTRACT)
         )
     if checkpoint_config.get("tokenizer_training_contract") != TOKENIZER_TRAINING_CONTRACT:
-        raise RuntimeError("Legacy semantic-supervised tokenizer cannot be used as the new model; "
+        raise RuntimeError("Legacy layer/auxiliary-supervised tokenizer cannot be used as the new model; "
                            "retrain Stage 2 and export fresh source codes")
+    require_no_auxiliary_supervision(checkpoint_config, state_dict)
     num_quantizers = int(checkpoint_config.get(
         "num_quantizers", MODULE2_CONFIG["num_quantizers"]
     ))

@@ -161,8 +161,8 @@ def parse_args(argv=None):
                         help="Bound padded attention memory without truncating source sequences")
     parser.add_argument("--small-sample", action="store_true")
     parser.add_argument("--small-ratio", type=float, default=0.1)
-    parser.add_argument("--jump-aux-weight", type=float, choices=(0.125,), default=0.125)
-    parser.add_argument("--poi-aux-weight", type=float, choices=(0.075,), default=0.075)
+    parser.add_argument("--jump-aux-weight", type=float, choices=(0.0,), default=0.0)
+    parser.add_argument("--poi-aux-weight", type=float, choices=(0.0,), default=0.0)
     parser.add_argument("--time-aux-weight", type=float, choices=(0.0,), default=0.0)
     parser.add_argument("--encoder-perturb-mode", choices=("iid",), default="iid")
     parser.add_argument("--encoder-perturb-sigma", type=float, choices=(0.1,), default=0.1)
@@ -241,7 +241,7 @@ def main(argv=None):
     config = build_training_config(args)
     frozen = dict(quantizer_type='fsq', num_quantizers=3, codebook_size=64,
                   use_surprisal=False,
-                  jump_aux_weight=0.125, poi_aux_weight=0.075, time_aux_weight=0.0,
+                  jump_aux_weight=0.0, poi_aux_weight=0.0, time_aux_weight=0.0,
                   encoder_perturb_mode='iid', encoder_perturb_sigma=0.1)
     for key, value in frozen.items():
         if config.get(key) != value:

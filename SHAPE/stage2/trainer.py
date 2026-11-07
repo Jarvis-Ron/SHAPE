@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from .config import MODULE2_CONFIG as C, require_no_semantic_options
+from .config import MODULE2_CONFIG as C, require_no_semantic_options, require_no_auxiliary_supervision
 
 
 @torch.no_grad()
@@ -386,6 +386,7 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
     if config is None:
         config = C
     require_no_semantic_options(config)
+    require_no_auxiliary_supervision(config, model.state_dict())
     _seed = config.get("seed", 42)
     set_seed(_seed)
     optimizer = torch.optim.AdamW(

@@ -68,8 +68,8 @@ def training_plan(spec, output, device, prepared_events=False):
         add('prepare-events', '--city', source, '--config', output / 'city_paths.json', '--seed', 42)
     add('train-tokenizer', '--city', source, '--data-dir', event_dir, '--device', device,
         '--quantizer-type', 'fsq', '--num-quantizers', 3,
-        '--codebook-size', 64, '--fsq-levels', '4,4,4', '--jump-aux-weight', .125,
-        '--poi-aux-weight', .075, '--time-aux-weight', 0, '--encoder-perturb-mode', 'iid',
+        '--codebook-size', 64, '--fsq-levels', '4,4,4', '--jump-aux-weight', 0,
+        '--poi-aux-weight', 0, '--time-aux-weight', 0, '--encoder-perturb-mode', 'iid',
         '--encoder-perturb-sigma', .1, '--epochs', 50, '--batch-size', 196,
         '--max-attention-cells', 8388608, '--seed', 42, '--save-dir', training,
         '--model-name', 'tokenizer.pth', '--history-name', 'tokenizer_history.json',
@@ -77,7 +77,7 @@ def training_plan(spec, output, device, prepared_events=False):
     add('encode-source', '--source-city', source, '--data-dir', event_dir,
         '--checkpoint', training / 'tokenizer.pth', '--grid-csv', spec['source_grid'],
         '--output', data / 'source_codes.npz', '--device', device, '--batch-size', 1, '--seed', 42,
-        '--expected-jump-aux-weight', .125, '--expected-poi-aux-weight', .075,
+        '--expected-jump-aux-weight', 0, '--expected-poi-aux-weight', 0,
         '--expected-time-aux-weight', 0, '--require-no-time-aux', '--city-config', output / 'city_paths.json')
     add('train-landing', '--codes', data / 'source_codes.npz', '--grid-csv', spec['source_grid'],
         '--output', training / 'landing.pth', '--mode', 'l2_attributes', '--device', device,

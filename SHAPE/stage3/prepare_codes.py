@@ -186,10 +186,6 @@ def prepare_codes(
         )
     if pad_analysis_codes_to_three and native_num_layers > 3:
         raise RuntimeError("Only one- or two-layer analysis arms can be padded")
-    if float(checkpoint_report.get("jump_aux_weight", 0.0)) <= 0.0:
-        raise RuntimeError(
-            "Phase 2 requires the selected jumpaux tokenizer checkpoint"
-        )
     aux_contract = validate_aux_contract(
         checkpoint_report,
         expected_jump_aux_weight=expected_jump_aux_weight,
@@ -385,7 +381,7 @@ def parse_args(argv=None):
     )
     parser.add_argument(
         "--checkpoint",
-        default="SHAPE/stage2/checkpoints/rqvae_transformer_jumpaux_poiaux.pth",
+        default="SHAPE/stage2/checkpoints/rqvae_transformer_iid_s0p1_no_layer_semantics.pth",
     )
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--city-config", help="City-path JSON used by prepare-events")

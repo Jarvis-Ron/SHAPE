@@ -211,32 +211,28 @@ def test_time_auxiliary_head_uses_six_fixed_local_time_periods():
     assert enabled.time_head.weight.grad is not None
 
 
-def test_time_aux_checkpoint_contract_cannot_claim_a_missing_head(tmp_path):
+@pytest.mark.parametrize('aux', ['jump', 'poi', 'time'])
+def test_auxiliary_checkpoint_cannot_be_used_as_no_aux_model(tmp_path, aux):
     config = {
         "d_model": 8, "nhead": 2, "num_encoder_layers": 1,
         "num_decoder_layers": 1, "dim_feedforward": 16, "dropout": 0.0,
         "num_quantizers": 1, "codebook_size": 8, "quantizer_type": "fsq",
-        "fsq_levels": [2, 2, 2], "time_aux_weight": 0.05,
+        "fsq_levels": [2, 2, 2], f"{aux}_aux_weight": 0.05,
     }
     model = build_tokenizer(config)
     complete = tmp_path / "complete.pth"
     torch.save({"model_state_dict": model.state_dict(), "config": {
         **MODULE2_CONFIG, **config,
     }}, complete)
-    loaded, _, report = load_tokenizer(complete, torch.device("cpu"), "fsq")
-    assert loaded.time_head is not None
-    assert report["time_aux_weight"] == pytest.approx(0.05)
-
-    missing = tmp_path / "missing.pth"
-    state = {
-        key: value for key, value in model.state_dict().items()
-        if not key.startswith("time_head")
-    }
-    torch.save({"model_state_dict": state, "config": {
-        **MODULE2_CONFIG, **config,
-    }}, missing)
-    with pytest.raises(RuntimeError, match="required for encoding"):
-        load_tokenizer(missing, torch.device("cpu"), "fsq")
+    with pytest.raises(ValueError, match="zero auxiliary"):
+        load_tokenizer(complete, torch.device("cpu"), "fsq")
+    # Changing a stored flag must not silently reuse auxiliary-trained weights.
+    mislabeled = tmp_path / "mislabeled.pth"
+    torch.save({"model_state_dict": model.state_dict(), "config": {
+        **MODULE2_CONFIG, **config, f"{aux}_aux_weight": 0.0,
+    }}, mislabeled)
+    with pytest.raises(ValueError, match="no auxiliary head"):
+        load_tokenizer(mislabeled, torch.device("cpu"), "fsq")
 
 
 def test_route_a_surprisal_is_explicit_opt_in_and_keeps_poi_fallback():
@@ -272,10 +268,8 @@ def test_residual_layers_learn_without_assigned_feature_targets():
     outputs = model(x, attention_mask=torch.ones(2, 4, dtype=torch.bool))
     assert len(outputs) == 8
     reconstructed, vq_loss, _, _, z_q, codes, future, temporal = outputs
-    loss = (model.compute_loss(x, reconstructed) + vq_loss
-            + .1 * future + temporal
-            + .125 * model.compute_jump_aux_loss(x, z_q)
-            + .075 * model.compute_poi_aux_loss(x, z_q))
+    assert model.jump_head is None and model.poi_head is None
+    loss = model.compute_loss(x, reconstructed) + vq_loss + .1 * future + temporal
     loss.backward()
     assert codes.shape == (2, 4, 3)
     for projection in model.rq_layer.residual_projections:
@@ -294,11 +288,14 @@ def test_removed_semantic_options_cannot_be_silently_reenabled(name, value):
         build_tokenizer({name: value})
 
 
-def test_legacy_tokenizer_cannot_be_mislabeled_as_unsupervised(tmp_path):
+@pytest.mark.parametrize('old_contract', [None, 'residual_fsq_no_layer_semantics_v2'])
+def test_legacy_tokenizer_cannot_be_mislabeled_as_unsupervised(tmp_path, old_contract):
     config = dict(MODULE2_CONFIG, d_model=8, nhead=2, num_encoder_layers=1,
                   num_decoder_layers=1, dim_feedforward=16)
     model = build_tokenizer(config)
     config.pop("tokenizer_training_contract")
+    if old_contract is not None:
+        config['tokenizer_training_contract'] = old_contract
     config.update(injection_mode="layered", semantic_loss_weight=.02)
     path = tmp_path / "legacy.pth"
     torch.save({"config": config, "model_state_dict": model.state_dict()}, path)

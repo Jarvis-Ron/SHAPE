@@ -52,6 +52,6 @@
     "target_distance_calibration": false,
     "target_test": "unchanged_matched_person_day_evaluation_shell_only",
     "pareto_distance_cost": false,
-    "tokenizer_training_contract": "residual_fsq_no_layer_semantics_v2"
+    "tokenizer_training_contract": "residual_fsq_no_layer_semantics_no_aux_v3"
   }
 }

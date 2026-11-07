@@ -134,7 +134,7 @@ def generate(spec, output, device, lanes=1):
     write_json(output / 'runtime.json', _jsonable(provenance))
     write_json(output / 'manifest.json', dict(status='complete', direction=spec['direction'],
         configuration=FIXED_VARIANT, seeds=spec['seeds'], input_sha256=bindings,
-        mechanism='shape_no_layer_semantics_rank_only_v2',
+        mechanism='shape_no_layer_semantics_no_aux_rank_only_v3',
         tokenizer_training_contract=TOKENIZER_TRAINING_CONTRACT,
         target_reference_read_by_generation=not direct,
         target_checkin_generation_use='aggregate_home_quota_only' if direct else 'training_home_marginal_and_eligible_user_set',

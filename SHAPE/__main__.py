@@ -19,7 +19,7 @@ COMMANDS = {
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv or argv[0] in ('-h', '--help'):
-        print('SHAPE code: opportunity-weighted rank + distance cost (lambda=kappa=0)')
+        print('SHAPE code: residual FSQ without layer supervision; opportunity-weighted rank without distance correction (lambda=kappa=0)')
         print('Usage: python -m SHAPE <command> [options]\nCommands:')
         for name in COMMANDS:
             print('  ' + name)

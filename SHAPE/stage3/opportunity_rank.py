@@ -129,7 +129,7 @@ def fit_personal_profiles(artifact, projected_grid, centers, grid_ids, *,
     positions = np.searchsorted(vocabulary, projected_grid)
     if np.any(positions >= len(vocabulary)) or not np.array_equal(vocabulary[positions], projected_grid):
         raise ValueError('source profile grid outside static vocabulary')
-    counts, histories, distances = {}, {}, []
+    counts, histories = {}, {}
     coarse_total = np.zeros(4, dtype=np.int64)
     fine_edges = np.array([0, 1, 5, 20, 50, 100, 500, 1000, 5000, 20000, np.inf])
     diagnostic = np.zeros(len(fine_edges)-1, dtype=np.int64)
@@ -147,7 +147,6 @@ def fit_personal_profiles(artifact, projected_grid, centers, grid_ids, *,
             counts[user][bucket] += 1
             coarse_total[bucket] += 1
             diagnostic[min(len(diagnostic)-1, int(np.searchsorted(fine_edges[1:], value, side='right')))] += 1
-            distances.append(float(distance_row_km(centers[left], np.asarray(centers)[[right]])[0]))
     if coarse_total.sum() == 0:
         raise ValueError('no source training transitions for personal profiles')
     population = coarse_total / float(coarse_total.sum())
@@ -170,18 +169,11 @@ def fit_personal_profiles(artifact, projected_grid, centers, grid_ids, *,
             shrunk_ring_probability=shrunk.tolist(), ring_ratio=ratio.tolist(),
             revisit_count=returns, revisit_observations=observations,
             shrunk_revisit_rate=r_shrunk, revisit_ratio=r_ratio)
-    positive = np.asarray(distances)[np.asarray(distances) > 0]
-    if not len(positive):
-        raise ValueError('cannot fit distance cost without positive source jumps')
-    xmin = float(positive.min())
-    denominator = float(np.log(positive / xmin).sum())
-    gamma = 1.0 + len(positive)/denominator if denominator > 0 else None
     return dict(schema='personal_scale_profile_v1', fit_split='source_train_only',
                 n0=n0, population_ring_counts=coarse_total.tolist(),
                 population_ring_probability=population.tolist(), mean_return_rate=mean_return,
                 revisit_definition='window20_burn10_per_resident_train_chronology',
-                residents=residents, gamma=gamma, cost_xmin_km=xmin,
-                positive_cost_observations=len(positive),
+                residents=residents,
                 diagnostic_rank_edges=[float(x) if np.isfinite(x) else 'inf' for x in fine_edges],
                 diagnostic_rank_counts=diagnostic.tolist())
 

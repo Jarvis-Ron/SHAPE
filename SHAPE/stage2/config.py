@@ -3,6 +3,22 @@
 Only dependencies of the retained SHAPE stages are included. See docs/code-map.md.
 """
 
+TOKENIZER_TRAINING_CONTRACT = "residual_fsq_no_layer_semantics_v2"
+REMOVED_SEMANTIC_OPTIONS = frozenset({
+    "injection_mode", "semantic_loss_weight",
+    "semantic_warm_start_steps", "semantic_warm_start_lr",
+})
+
+
+def require_no_semantic_options(config):
+    removed = REMOVED_SEMANTIC_OPTIONS.intersection(config)
+    if removed:
+        raise ValueError("Layer semantic supervision options were removed: "
+                         + ", ".join(sorted(removed)))
+    if config.get("aux_routing", "aggregate") != "aggregate":
+        raise ValueError("Layer-targeted auxiliary options were removed; use aggregate objectives")
+
+
 CITY_DATA_DIRS = {
     "nyc": "SHAPE/stage2/nyc_event_driven",
     "paris": "SHAPE/stage2/paris_event_driven",
@@ -19,6 +35,7 @@ def resolve_data_dir(city="nyc", config=None):
 
 
 MODULE2_CONFIG = {
+    "tokenizer_training_contract": TOKENIZER_TRAINING_CONTRACT,
     # v3 adds one explicit missing-static/latent flag at column 135.  The
     # city-invariant encoder selection remains unchanged; the flag is audited.
     "encoder_feature_contract": "city_invariant_v3_sparse_grid_flag",
@@ -69,9 +86,6 @@ MODULE2_CONFIG = {
     "entropy_tau_end": 0.15,
     "entropy_tau_anneal_start_epoch": 5,
     "entropy_tau_anneal_end_epoch": 15,
-    # The frozen SHAPE model supervises three residual layers separately.
-    "injection_mode": "layered",
-    "semantic_loss_weight": 0.02,
     # Fixed source jump-bin auxiliary objective in the reference checkpoint.
     "jump_aux_weight": 0.125,
     "jump_bin_thresholds": [1e-8, 0.05, 0.15, 0.30],
@@ -81,8 +95,6 @@ MODULE2_CONFIG = {
     # Time auxiliary supervision is disabled in the fixed SHAPE checkpoint.
     "time_aux_weight": 0.0,
     "time_bin_boundaries": [5.0, 10.0, 14.0, 18.0, 22.0],
-    "semantic_warm_start_steps": 200,
-    "semantic_warm_start_lr": 1e-3,
     "rq_commit_beta": 0.25,
     "encoder_noise": 1.0,
     "encoder_perturb": 0.05,

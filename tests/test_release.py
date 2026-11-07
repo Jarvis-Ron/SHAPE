@@ -61,7 +61,7 @@ def test_target_test_values_cannot_cross_home_boundary():
 
 def test_release_refuses_other_mechanisms_and_changed_contract(tmp_path):
     assert config_id(FIXED_VARIANT)=='SHAPE'
-    for key,value in [('weighted_rank',False),('lambda',.5),('kappa',1),('cost',False)]:
+    for key,value in [('weighted_rank',False),('lambda',.5),('kappa',1),('cost',True)]:
         with pytest.raises(ValueError):
             config_id(dict(FIXED_VARIANT,**{key:value}))
     contract=load_contract()

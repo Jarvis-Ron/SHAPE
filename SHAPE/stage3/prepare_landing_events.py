@@ -70,12 +70,10 @@ def prepare_landing_events(
     for batch in tqdm(loader, desc="Encode %s landing events" % city.upper()):
         sequence = batch["x"].to(device)
         mask = batch["attention_mask"].to(device)
-        embedded, paths = model.surprisal_encoder(sequence)
+        embedded, _ = model.surprisal_encoder(sequence)
         embedded = embedded * mask.unsqueeze(-1).to(embedded.dtype)
         z_e = model.transformer_encoder(embedded)
-        z_q, _, _, _, _, _, _ = model.rq_layer(
-            z_e, feature_paths=paths, mask=mask
-        )
+        z_q, _, _, _, _, _ = model.rq_layer(z_e, mask=mask)
         reconstructed = model.decode(z_q, mask=mask).cpu().numpy()
         x = sequence.cpu().numpy()
         valid = mask.cpu().numpy().astype(bool)
@@ -110,6 +108,7 @@ def prepare_landing_events(
         "encoder_feature_contract": report.get("encoder_feature_contract"),
         "quantizer_type": str(report["inferred_quantizer_type"]),
         "quantizer_types": list(report["quantizer_types"]),
+        "tokenizer_training_contract": report["tokenizer_training_contract"],
         "aux_contract": aux_contract,
         "target_city_training_data_used": False,
         "target_city_evaluation_data_used": bool(city != tokenizer_source_city),
@@ -121,6 +120,7 @@ def prepare_landing_events(
         tokenizer_sha256=np.asarray(checkpoint_sha),
         quantizer_type=np.asarray(str(report["inferred_quantizer_type"])),
         quantizer_types=np.asarray(report["quantizer_types"]),
+        tokenizer_training_contract=np.asarray(report["tokenizer_training_contract"]),
         source_city=np.asarray(city), split=np.asarray(split),
         evaluation_city=np.asarray(city),
         sequence_offsets=offsets, sequence_user_ids=np.asarray(all_users),

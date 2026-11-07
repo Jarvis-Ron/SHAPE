@@ -6,7 +6,7 @@ Only dependencies of the retained SHAPE stages are included. See docs/code-map.m
 from __future__ import annotations
 import re
 import torch
-from .config import MODULE2_CONFIG
+from .config import MODULE2_CONFIG, TOKENIZER_TRAINING_CONTRACT, require_no_semantic_options
 from .model import RQVAETransformerExtractor
 
 
@@ -169,6 +169,9 @@ def build_tokenizer(config=None):
             "Unsupported encoder feature contract: %r"
             % resolved.get("encoder_feature_contract")
         )
+    require_no_semantic_options(resolved)
+    if resolved["tokenizer_training_contract"] != TOKENIZER_TRAINING_CONTRACT:
+        raise ValueError("Unsupported tokenizer training contract; retrain the tokenizer")
     quantizer_type, quantizer_types = normalize_quantizer_types(
         resolved["quantizer_type"], resolved.get("quantizer_types"),
         resolved["num_quantizers"],
@@ -215,7 +218,6 @@ def build_tokenizer(config=None):
         encoder_perturb_mode=resolved.get("encoder_perturb_mode", "none"),
         encoder_perturb_sigma=resolved.get("encoder_perturb_sigma", 0.0),
         aux_routing=resolved.get("aux_routing", "aggregate"),
-        injection_mode=resolved.get("injection_mode", "layered"),
     )
 
 
@@ -231,6 +233,9 @@ def load_tokenizer(checkpoint_path, device, quantizer_type=None):
             "Retrain the stage-one tokenizer after the Route-A encoder change."
             .format(checkpoint_contract, ENCODER_FEATURE_CONTRACT)
         )
+    if checkpoint_config.get("tokenizer_training_contract") != TOKENIZER_TRAINING_CONTRACT:
+        raise RuntimeError("Legacy semantic-supervised tokenizer cannot be used as the new model; "
+                           "retrain Stage 2 and export fresh source codes")
     num_quantizers = int(checkpoint_config.get(
         "num_quantizers", MODULE2_CONFIG["num_quantizers"]
     ))
@@ -339,7 +344,7 @@ def load_tokenizer(checkpoint_path, device, quantizer_type=None):
         "aux_routing": str(
             checkpoint_config.get("aux_routing", "aggregate")
         ),
-        "injection_mode": str(model.rq_layer.injection_mode),
+        "tokenizer_training_contract": TOKENIZER_TRAINING_CONTRACT,
         "replace_unused_every_n_steps": checkpoint_config.get(
             "replace_unused_every_n_steps"
         ),

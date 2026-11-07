@@ -5,8 +5,7 @@
   "configuration": {
     "weighted_rank": true,
     "lambda": 0,
-    "kappa": 0,
-    "cost": true
+    "kappa": 0
   },
   "seeds": [
     42,
@@ -30,5 +29,7 @@
   },
   "archived_predictions": "../inputs/nyc_to_paris/predictions.npz",
   "original_shell_plans": "../inputs/nyc_to_paris/shell_plans.npz",
-  "shell_length_policy": "strict"
+  "shell_length_policy": "strict",
+  "mechanism": "shape_no_layer_semantics_rank_only_v2",
+  "bundled_artifacts": "historical_semantic_supervision_and_distance_cost"
 }

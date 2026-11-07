@@ -211,12 +211,10 @@ def prepare_codes(
     for batch in tqdm(loader, desc="Prepare %s daily codes" % source_city.upper()):
         sequence = batch["x"].to(device)
         mask = batch["attention_mask"].to(device)
-        embedded, paths = model.surprisal_encoder(sequence)
+        embedded, _ = model.surprisal_encoder(sequence)
         embedded = embedded * mask.unsqueeze(-1).to(embedded.dtype)
         z_e = model.transformer_encoder(embedded)
-        z_q, _, _, codes, _, _, _ = model.rq_layer(
-            z_e, feature_paths=paths, mask=mask
-        )
+        z_q, _, _, codes, _, _ = model.rq_layer(z_e, mask=mask)
         reconstructed_h = model.decode(z_q, mask=mask)
 
         x_np = sequence.cpu().numpy()
@@ -319,9 +317,7 @@ def prepare_codes(
         "quantizer_type": str(checkpoint_report["inferred_quantizer_type"]),
         "quantizer_types": list(checkpoint_report["quantizer_types"]),
         "aux_routing": str(checkpoint_report.get("aux_routing", "aggregate")),
-        "injection_mode": str(
-            checkpoint_report.get("injection_mode", "layered")
-        ),
+        "tokenizer_training_contract": checkpoint_report["tokenizer_training_contract"],
         "num_code_layers": output_num_layers,
         "native_num_code_layers": native_num_layers,
         "analysis_padding": (
@@ -347,9 +343,7 @@ def prepare_codes(
             str(checkpoint_report["inferred_quantizer_type"])
         ),
         "quantizer_types": np.asarray(checkpoint_report["quantizer_types"]),
-        "injection_mode": np.asarray(
-            str(checkpoint_report.get("injection_mode", "layered"))
-        ),
+        "tokenizer_training_contract": np.asarray(checkpoint_report["tokenizer_training_contract"]),
         "codebook_size": np.asarray(native_codebook_size, dtype=np.int32),
         "num_code_layers": np.asarray(output_num_layers, dtype=np.int8),
         "native_num_code_layers": np.asarray(native_num_layers, dtype=np.int8),

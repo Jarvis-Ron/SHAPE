@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from SHAPE.stage3.sampler import _encode_landing_queries, attraction_distribution, group_autoregressive_landing
 from SHAPE.stage3.resident_index import proportional_integer_capacities
-from SHAPE.stage3.rank_semantics import DISTANCE_LOG_EPSILON_KM, _jsonable, _payload_mixture
+from SHAPE.stage3.rank_semantics import _jsonable, _payload_mixture
 from SHAPE.stage3.prototype_semantics import ATTRACTION_SMOOTHING
 
 
@@ -702,33 +702,25 @@ def _core_landing(
             personal_options["personal_ring_multiplier"] = multiplier
         if config["kappa"] != 0:
             personal_options["sequence_revisit_beta"] = betas
-        if config.get("cost", False):
-            gamma = runtime["personal_profiles"]["gamma"]
-            if gamma is None:
-                raise ValueError("source distances do not admit the declared Pareto cost fit")
-            personal_options.update(distance_cost_gamma=gamma,
-                distance_cost_xmin_km=runtime["personal_profiles"]["cost_xmin_km"])
     return group_autoregressive_landing(
         lane["model"], runtime["target_l2"], runtime["target_raw"],
         runtime["normalization"], features, local_offsets, homes,
-        lane["device"], landing_temperature, 1.0, runtime["selected_beta"],
+        lane["device"], landing_temperature, runtime["selected_beta"],
         target_grid_ids=runtime["target_grid_ids"],
         centers=runtime["target_centers"], candidate_top_k=candidate_top_k,
         omitted_mass_tolerance=candidate_omitted_mass_tolerance,
         omitted_mass_audit_steps=candidate_audit_steps,
         sequence_batch_size=sequence_batch_size, return_audit=True,
         encoded_queries=queries, normalized_target_tensor=lane["target"],
-        prepared_center_tensor=lane["centers"], neighborhood_cache={},
         event_batch_size=landing_event_batch_size,
         code_distance_bin_probabilities=mixture["physical"][event_indices],
-        physical_distance_bin_edges_km=spec["coarse_edges"],
+        rank_bin_edges=spec["coarse_edges"],
         code_distance_piecewise_probabilities=(
             mixture["piecewise"][event_indices]
         ),
-        physical_distance_piecewise_edges_km=spec["piecewise_edges"],
+        rank_piecewise_edges=spec["piecewise_edges"],
         distance_kernel_tau=float(runtime["base_parameters"]["distance_tau"]),
         history_seed_grid_ids=history,
-        distance_log_epsilon_km=DISTANCE_LOG_EPSILON_KM,
         selection_mode="sample", selection_seed=int(selection_seed),
         selection_temperature=float(
             runtime["base_parameters"]["selection_temperature"]

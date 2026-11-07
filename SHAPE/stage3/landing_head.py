@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from SHAPE.stage1.grid_text_encoder import load_grid_features
 from SHAPE.gridspec import SparseLatentTable, StaticGrid, infer_city
-from SHAPE.stage3.contracts import CODES_SCHEMA, load_npz, require_scalar, sha256_file, write_json
+from SHAPE.stage3.contracts import CODES_SCHEMA, load_npz, require_scalar, require_current_tokenizer_training, sha256_file, write_json
 
 
 LANDING_CHECKPOINT_SCHEMA = "civic_phase3_landing_head_checkpoint_v4"
@@ -307,6 +307,7 @@ def train_landing_head(
     """Train only on the source city bound into the daily-code archive."""
     _set_seed(seed)
     encoded = load_npz(codes)
+    require_current_tokenizer_training(encoded)
     source_city = str(require_scalar(encoded, "source_city")).lower()
     train_h, train_grid, train_previous = _split_arrays(
         encoded, "train", source_city

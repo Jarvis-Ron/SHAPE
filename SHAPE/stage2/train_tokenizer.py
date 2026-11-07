@@ -12,7 +12,6 @@ from pathlib import Path
 import torch
 from .config import CITY_DATA_DIRS, MODULE2_CONFIG
 from .data import get_dataloaders
-from .rqvae_modules import INJECTION_MODES
 from .tokenizer import MIXED_QUANTIZER_PRESETS, SUPPORTED_QUANTIZERS, build_tokenizer
 from .trainer import train_vqvae
 
@@ -73,7 +72,7 @@ def artifact_names(
         poi_aux_weight=0.0, time_aux_weight=0.0, codebook_size=None,
         fsq_levels=None, encoder_perturb_mode="none",
         encoder_perturb_sigma=0.0, quantizer_types=None,
-        aux_routing="aggregate", injection_mode="layered",
+        aux_routing="aggregate",
         num_quantizers=None):
     """Return collision-free checkpoint, history, and plot names."""
     if quantizer_type not in SUPPORTED_QUANTIZERS:
@@ -100,17 +99,11 @@ def artifact_names(
     if str(encoder_perturb_mode) != "none":
         sigma_label = ("%g" % float(encoder_perturb_sigma)).replace(".", "p")
         suffix += "_%s_s%s" % (encoder_perturb_mode, sigma_label)
-    if str(aux_routing) == "layer_targeted":
-        suffix += "_targetedaux"
-    injection_mode = str(injection_mode).lower()
-    if injection_mode not in INJECTION_MODES:
-        raise ValueError(
-            "injection_mode must be layered or first_layer_all"
-        )
-    if injection_mode == "first_layer_all":
-        suffix += "_inj1"
+    if str(aux_routing) != "aggregate":
+        raise ValueError("Only aggregate auxiliary supervision is supported")
     if num_quantizers is not None:
         suffix += "_rq%d" % int(num_quantizers)
+    suffix += "_no_layer_semantics"
     return {
         "model_name": "rqvae_transformer%s.pth" % suffix,
         "history_name": "training_history%s.json" % suffix,
@@ -156,7 +149,6 @@ def parse_args(argv=None):
     parser.add_argument("--city", default="nyc", choices=sorted(CITY_DATA_DIRS))
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--quantizer-type", default="fsq", choices=("fsq",))
-    parser.add_argument("--injection-mode", default="layered", choices=("layered",))
     parser.add_argument("--num-quantizers", type=int, choices=(3,), default=None)
     parser.add_argument("--codebook-size", type=int, choices=(64,), default=None)
     parser.add_argument("--fsq-levels", type=_parse_fsq_levels, choices=((4,4,4),), default=None)
@@ -201,7 +193,6 @@ def build_training_config(args):
     config["quantizer_types"] = list(args.quantizer_types)
     config["mixed_stack_contract"] = "per_layer_quantizer_v1"
     config["aux_routing"] = args.aux_routing
-    config["injection_mode"] = args.injection_mode
     config["num_quantizers"] = int(args.num_quantizers)
     config["codebook_size"] = int(args.codebook_size)
     config["num_embeddings"] = int(args.codebook_size)
@@ -230,7 +221,6 @@ def build_training_config(args):
         encoder_perturb_sigma=config["encoder_perturb_sigma"],
         quantizer_types=config["quantizer_types"],
         aux_routing=config["aux_routing"],
-        injection_mode=config["injection_mode"],
         num_quantizers=(
             config["num_quantizers"] if args.depth_explicit else None
         ),
@@ -250,7 +240,7 @@ def main(argv=None):
     args = parse_args(argv)
     config = build_training_config(args)
     frozen = dict(quantizer_type='fsq', num_quantizers=3, codebook_size=64,
-                  injection_mode='layered', use_surprisal=False,
+                  use_surprisal=False,
                   jump_aux_weight=0.125, poi_aux_weight=0.075, time_aux_weight=0.0,
                   encoder_perturb_mode='iid', encoder_perturb_sigma=0.1)
     for key, value in frozen.items():
@@ -284,7 +274,6 @@ def main(argv=None):
         encoder_perturb_sigma=config["encoder_perturb_sigma"],
         quantizer_types=config["quantizer_types"],
         aux_routing=config["aux_routing"],
-        injection_mode=config["injection_mode"],
         num_quantizers=(
             config["num_quantizers"] if args.depth_explicit else None
         ),
@@ -323,7 +312,7 @@ def main(argv=None):
         "encoder_perturb_mode": config["encoder_perturb_mode"],
         "encoder_perturb_sigma": config["encoder_perturb_sigma"],
         "aux_routing": config["aux_routing"],
-        "injection_mode": config["injection_mode"],
+        "tokenizer_training_contract": config["tokenizer_training_contract"],
         "num_quantizers": config["num_quantizers"],
         "epochs": config["epochs"],
         "patience": config["patience"],

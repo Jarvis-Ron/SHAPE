@@ -15,7 +15,8 @@ import torch
 from SHAPE.gridspec import StaticGrid
 from SHAPE.stage3.sampler import _compare_aggregates
 from SHAPE.stage3.context_memory import _run_e2_tasks
-from SHAPE.stage3.contracts import sha256_file, write_json
+from SHAPE.stage2.config import TOKENIZER_TRAINING_CONTRACT
+from SHAPE.stage3.contracts import require_current_tokenizer_training, sha256_file, write_json
 from SHAPE.stage3.grid_projection import _project_nominal_ids_to_vocabulary
 from SHAPE.stage3.group_index import load_v4_transport_provenance, repair_group_index
 from SHAPE.stage3.landing_head import load_canonical_grid_attributes
@@ -88,6 +89,8 @@ def sampling_tasks(payloads, contract, seeds):
 
 
 def generate(spec, output, device, lanes=1):
+    with np.load(spec['source_codes'], allow_pickle=False) as archive:
+        require_current_tokenizer_training(archive)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
     bindings = check_inputs(spec, generation=True)
@@ -131,6 +134,8 @@ def generate(spec, output, device, lanes=1):
     write_json(output / 'runtime.json', _jsonable(provenance))
     write_json(output / 'manifest.json', dict(status='complete', direction=spec['direction'],
         configuration=FIXED_VARIANT, seeds=spec['seeds'], input_sha256=bindings,
+        mechanism='shape_no_layer_semantics_rank_only_v2',
+        tokenizer_training_contract=TOKENIZER_TRAINING_CONTRACT,
         target_reference_read_by_generation=not direct,
         target_checkin_generation_use='aggregate_home_quota_only' if direct else 'training_home_marginal_and_eligible_user_set',
         prediction_sha256=sha256_file(output / 'predictions.npz')))
@@ -250,6 +255,12 @@ def evaluate(spec, prediction_file, output, workers=4):
                   means={k: lookup[k]['mean'] for k in FIVE}, stds={k: lookup[k]['std'] for k in FIVE},
                   prediction_sha256=sha256_file(prediction_file), shell_plan_array_sha256=plan_hash,
                   target_days=len(target['lengths']), source_days=len(source['lengths']), status='complete')
+    archived = spec.get('archived_predictions')
+    result['prediction_origin'] = (
+        'historical_semantic_supervision_and_distance_cost'
+        if archived and result['prediction_sha256'] == sha256_file(archived)
+        else 'supplied_predictions'
+    )
     write_json(output / 'result.json', result)
     print(json.dumps(five), flush=True)
     return result

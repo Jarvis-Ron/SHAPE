@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from SHAPE.reproduce import read_spec, summarize
+from SHAPE.reproduce import generate, read_spec, summarize
 from SHAPE.stage3.run import FIVE
 from SHAPE.stage3.runtime import quota_probability
 from run_full_pipeline import DIRECTIONS, ROOT, training_plan, verify_reference
@@ -16,6 +16,26 @@ from run_full_pipeline import DIRECTIONS, ROOT, training_plan, verify_reference
 def test_original_metric_samples_recover_all_four_reference_rows(direction):
     result = verify_reference(direction)
     assert set(result) == set(FIVE)
+
+
+@pytest.mark.parametrize('direction', DIRECTIONS)
+def test_new_generation_rejects_historical_source_codes_before_target_access(direction, tmp_path):
+    spec = read_spec(ROOT / 'configs' / f'{direction}.json')
+    # If generation touches the target reference before checking training
+    # lineage, this nonexistent path causes the wrong exception.
+    spec['target_reference'] = str(tmp_path / 'must-not-be-read.npz')
+    destination = tmp_path / 'generation'
+    with pytest.raises(ValueError, match='Retrain Stage 2'):
+        generate(spec, destination, 'cpu')
+    assert not destination.exists()
+
+
+def test_landing_training_rejects_historical_supervised_codes(tmp_path):
+    from SHAPE.stage3.landing_head import train_landing_head
+    spec = read_spec(ROOT / 'configs' / 'nyc_to_ca.json')
+    with pytest.raises(ValueError, match='Retrain Stage 2'):
+        train_landing_head(spec['source_codes'], None, spec['source_grid'], tmp_path / 'landing.pth')
+    assert not (tmp_path / 'landing.pth').exists()
 
 
 def test_seed_variability_is_not_confused_with_shell_variability():
@@ -52,3 +72,4 @@ def test_fresh_training_fits_behavior_on_source_only(direction, tmp_path):
                 assert command[command.index(option) + 1] == spec['source_city']
     assert set(paths) == {spec['source_city']}
     assert all(spec['target_reference'] not in command for command in commands)
+    assert all('--injection-mode' not in command for command in commands)

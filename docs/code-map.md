@@ -13,12 +13,10 @@ flowchart LR
   Codes --> Head[Source landing head]
   Codes --> Semantics[Code-conditioned opportunity rings]
   Static --> Semantics
-  Codes --> Cost[Source distance cost]
   Static --> Candidate[Target candidate grids]
   Homes[Population home quotas] --> Init[Home initialization]
   Head --> Land[Stage 3: ring and candidate scoring]
   Semantics --> Land
-  Cost --> Land
   Candidate --> Land
   Init --> Land
   Land --> Pred[Generated target trajectories]
@@ -40,12 +38,12 @@ flowchart LR
 | `stage3/prepare_codes.py`, `source_cohort.py`, `resident_index.py` | Source day archives, train/test source schedules and user/day indexing |
 | `stage3/landing_head.py` | Source-supervised 64→20 feature query and checkpoint loading |
 | `stage3/source_semantics.py`, `prototype_semantics.py`, `rank_semantics.py` | Source train code backoff, coarse/fine ring distributions and POI attraction |
-| `stage3/opportunity_rank.py` | Raw-POI weighted ranks, bounded row caching, source profile and cost fitting |
+| `stage3/opportunity_rank.py` | Raw-POI weighted ranks, bounded row caching and source rank/revisit profiles |
 | `stage3/context_memory.py`, `sampler.py`, `runtime.py` | Static home matching, hard rings, target scoring, generated-visit memory and threaded seed lanes |
 | `stage3/reference.py`, `shell_support.py`, `shell_plan.py`, `matched_shell.py` | Fixed target reference, length support, resampling plans and matched donor days |
 | `stage3/metrics.py`, `spatial_metrics.py`, `basic_metrics.py` | OD, spatial/time and individual-distribution evaluation |
 | `stage3/group_index.py`, `static_features.py`, `grid_projection.py` | Released static feature repair, grid groups and sparse evaluation projection |
-| `stage3/tasks.py`, `SHAPE/shape_contract.json` | One fixed mechanism, seed list and original numerical contract |
+| `stage3/tasks.py`, `SHAPE/shape_contract.json` | Current rank-only mechanism, seed list and evaluation contract |
 | `SHAPE/verify.py` | Independent recomputation of the committed 200-draw reference table |
 
 ## Release boundaries
@@ -55,7 +53,9 @@ The root `run_full_pipeline.py` orchestrates four-direction verification,
 scoring, frozen-input generation, and fresh training. `SHAPE/reproduce.py`
 implements the three recorded scoring protocols and their seed semantics.
 
-Some internal schema strings retain legacy identifiers for loading archived
-weights and arrays. They do not expose additional model choices. Stage 2's
-public training interface accepts only the fixed three-layer residual FSQ
-configuration. See `verification.md` for actual checks and limits.
+Some internal array names retain legacy identifiers. In the generation path,
+`code_distance_*` probabilities now refer only to opportunity-rank bins.
+Stage 2's public training interface accepts the fixed three-layer residual FSQ
+configuration with aggregate auxiliary objectives and no layer semantic targets.
+Old weights/codes are rejected for generation; archived predictions can still
+be scored. See `verification.md` for actual checks and limits.

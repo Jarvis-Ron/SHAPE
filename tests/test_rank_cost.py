@@ -107,15 +107,14 @@ def test_full_landing_neutral_profiles_and_lazy_rank_preserve_predictions():
           np.array([0,4,8]),np.array([0,1]),torch.device('cpu'))
     kwargs=dict(revisit_beta=1.,target_grid_ids=np.arange(5),centers=centers,
                 code_distance_bin_probabilities=probability,distance_coordinate='spatial_rank',
-                physical_distance_bin_edges_km=(0,1,5,20,np.inf),
+                rank_bin_edges=(0,1,5,20,np.inf),
                 selection_mode='sample',selection_seed=42,hard_distance_ring_constraint=True,
                 hard_distance_ring_empty_policy='expand_adjacent',return_audit=True)
     original,audit=group_autoregressive_landing(*args,**kwargs,
         prepared_spatial_rank_tensor=torch.from_numpy(spatial_rank_table(centers)))
     neutral,check=group_autoregressive_landing(*args,**kwargs,
         prepared_spatial_rank_tensor=SpatialRankIndex(centers,np.ones(5)),
-        personal_ring_multiplier=np.ones((8,4)),sequence_revisit_beta=np.ones(2),
-        distance_cost_gamma=0)
+        personal_ring_multiplier=np.ones((8,4)),sequence_revisit_beta=np.ones(2))
     np.testing.assert_array_equal(neutral,original)
     assert audit['hard_distance_ring_pass'] == check['hard_distance_ring_pass'] is True
 
@@ -125,22 +124,37 @@ def test_invalid_static_weights_fail_closed():
     with pytest.raises(ValueError): opportunity_weights([1,-1])
 
 
-def test_cost_changes_choice_inside_ring_without_changing_ring():
+def test_sampling_is_invariant_to_distance_scale_with_the_same_opportunity_order():
     centers=np.array([[0,0],[0,.2],[0,.02]],dtype=np.float32)
     args=(_FlatLanding(),np.ones((3,2),dtype=np.float32),np.zeros((3,20),dtype=np.float32),
-          {'lower':[0.]*20,'upper':[1.]*20},np.ones((2,2),dtype=np.float32),
-          np.array([0,2]),np.array([0]),torch.device('cpu'))
-    kwargs=dict(revisit_beta=0.,target_grid_ids=np.arange(3),centers=centers,
-        code_distance_bin_probabilities=np.tile([0.,1.,0.,0.],(2,1)),
-        distance_coordinate='spatial_rank',physical_distance_bin_edges_km=(0,1,5,20,np.inf),
-        selection_mode='argmax',selection_seed=42,hard_distance_ring_constraint=True,
-        hard_distance_ring_empty_policy='expand_adjacent',return_audit=True,
+          {'lower':[0.]*20,'upper':[1.]*20},np.ones((8,2),dtype=np.float32),
+          np.array([0,4,8]),np.array([0,0]),torch.device('cpu'))
+    kwargs=dict(revisit_beta=0.,target_grid_ids=np.arange(3),
+        code_distance_bin_probabilities=np.tile([0.,1.,0.,0.],(8,1)),
+        distance_coordinate='spatial_rank',rank_bin_edges=(0,1,5,20,np.inf),
+        selection_mode='sample',selection_seed=42,hard_distance_ring_constraint=True,
+        hard_distance_ring_empty_policy='expand_adjacent',return_audit=True)
+    baseline,audit=group_autoregressive_landing(*args,**kwargs,centers=centers,
         prepared_spatial_rank_tensor=SpatialRankIndex(centers))
-    no_cost,_=group_autoregressive_landing(*args,**kwargs)
-    cost,audit=group_autoregressive_landing(*args,**kwargs,distance_cost_gamma=2.,distance_cost_xmin_km=1.)
-    assert no_cost.tolist()==[0,1]
-    assert cost.tolist()==[0,2]
-    assert audit['hard_distance_ring_pass'] is True
+    scaled,check=group_autoregressive_landing(*args,**kwargs,centers=centers*10,
+        prepared_spatial_rank_tensor=SpatialRankIndex(centers*10))
+    np.testing.assert_array_equal(scaled, baseline)
+    assert audit['hard_distance_ring_pass'] and check['hard_distance_ring_pass']
+    assert audit['physical_distance_correction'] is False
+    with pytest.raises(ValueError,match="Only spatial_rank"):
+        group_autoregressive_landing(*args,**dict(kwargs,distance_coordinate='physical_km'),centers=centers)
+    for option in ('distance_cost_gamma','distance_cost_xmin_km','code_target_distance_km'):
+        with pytest.raises(TypeError):
+            group_autoregressive_landing(*args,**kwargs,centers=centers,**{option:1.0})
+
+
+def test_source_profiles_need_no_positive_physical_jumps():
+    data, grids, centers = fixture()
+    grids[:] = 0
+    profile = fit_personal_profiles(data, grids, centers, np.arange(4),
+                                   rank_index=SpatialRankIndex(centers))
+    assert profile['population_ring_probability'] == [1.,0.,0.,0.]
+    assert 'gamma' not in profile and 'cost_xmin_km' not in profile
 
 
 def test_personal_tilt_selects_different_rings_for_two_residents():
@@ -152,7 +166,7 @@ def test_personal_tilt_selects_different_rings_for_two_residents():
     prediction,audit=group_autoregressive_landing(*args,revisit_beta=0.,
         target_grid_ids=np.arange(3),centers=centers,
         code_distance_bin_probabilities=np.tile([.5,.5,0.,0.],(8,1)),
-        distance_coordinate='spatial_rank',physical_distance_bin_edges_km=(0,1,5,20,np.inf),
+        distance_coordinate='spatial_rank',rank_bin_edges=(0,1,5,20,np.inf),
         selection_mode='sample',selection_seed=42,hard_distance_ring_constraint=True,
         hard_distance_ring_empty_policy='expand_adjacent',return_audit=True,
         personal_ring_multiplier=multiplier,prepared_spatial_rank_tensor=SpatialRankIndex(centers))

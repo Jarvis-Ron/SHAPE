@@ -6,7 +6,7 @@ they are internal identifiers, not additional model choices.
 import json
 from pathlib import Path
 
-FIXED_VARIANT = {'weighted_rank': True, 'lambda': 0, 'kappa': 0, 'cost': True}
+FIXED_VARIANT = {'weighted_rank': True, 'lambda': 0, 'kappa': 0}
 DEFAULT_CONTRACT = Path(__file__).parents[1] / 'shape_contract.json'
 
 

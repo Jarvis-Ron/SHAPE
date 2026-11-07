@@ -1,6 +1,8 @@
 # SHAPE
 
-Anonymous research code for cross-city trajectory generation. SHAPE transfers source-city activity sequences to a target city's static grid using activity prototypes, opportunity-weighted rings, distance cost, and generated-visit memory. This repository contains the final SHAPE configuration and four recorded transfer experiments, without baseline runners or inherited development history.
+Research code for cross-city trajectory generation. SHAPE transfers source-city activity sequences to a target city's static grid using activity prototypes, opportunity-weighted rings, and generated-visit memory. The current implementation removes layer-specific semantic supervision from residual FSQ and removes physical-distance corrections from Stage 3.
+
+**The bundled weights, predictions, loss histories and four reported rows are historical artifacts from the earlier model with layer semantic supervision and distance cost.** They are retained for scoring and verification. Train new Stage 2 and landing checkpoints to use the current model; old tokenizer checkpoints and source-code archives are rejected by training/export/generation rather than silently relabeled.
 
 ## Installation
 
@@ -15,17 +17,13 @@ python -m pytest -q
 
 CPU is sufficient for scoring the supplied outputs. CUDA is recommended for full training and large-target generation. Install the PyTorch build appropriate for your hardware first if necessary. Dependencies and tested local versions are recorded in `pyproject.toml` and `docs/environment.json`.
 
-## Reproduce the four reported rows
+## Score the four historical rows
 
-Datasets, frozen Stage 3 inputs, and original generated trajectories are included. No external model download or private source repository is required.
+Datasets, historical Stage 3 inputs, and original generated trajectories are included. No external model download or private source repository is required for historical scoring.
 
 ```bash
 # Recompute metrics from original generated grid sequences.
 bash run_full_pipeline.sh --direction all --mode score --output results/scored
-
-# Regenerate trajectories from frozen source codes and landing weights,
-# then evaluate using the recorded protocol.
-bash run_full_pipeline.sh --direction all --mode reproduce --device cuda:0 --output results/regenerated
 
 # Check saved metric draws and summaries; no new generation.
 bash run_full_pipeline.sh --direction all --mode verify
@@ -59,7 +57,15 @@ bash run_full_pipeline.sh --mode train --direction all --device cuda:0 --output 
 bash run_full_pipeline.sh --mode train --direction ca_to_paris --prepared-events --device cuda:0 --output results/ca_prepared
 ```
 
-Fresh training produces new checkpoints and is not a bitwise reconstruction of historical upstream embedding pipelines. Its Stage 1 uses the complete static map vocabulary. Historical CA embeddings use a smaller source cohort. The original NYC → Paris tokenizer and per-epoch training logs were not recovered; its frozen source-code archive and landing checkpoint are included and suffice for Stage 3 generation. Exact historical **metric** reproduction uses `--mode score`; `--mode reproduce` samples again from frozen Stage 3 inputs. Floating-point kernels and hardware can affect sampled sequences.
+Fresh training produces the current model, with no layer semantic loss or semantic warm-start and no Stage 3 distance calibration/cost. Its Stage 1 uses the complete static map vocabulary. Historical CA event embeddings use a smaller source cohort and can still be used to train a new tokenizer with `--prepared-events`. Full-data retraining and performance evaluation of the changed model have not been run; the table above is not its result.
+
+To sample again after fresh training, use the resulting bound spec:
+
+```bash
+python -m SHAPE.reproduce generate --spec results/fresh/nyc_to_ca/fit/transfer.json --device cuda:0 --output results/fresh_resampled
+```
+
+`--mode reproduce` with the bundled historical Stage 3 inputs now fails with a retraining instruction. For the original generator, use repository revision `fb1f69aa79073e0769a7686fbba6b4eedcde349f`; exact historical **metric** reproduction remains available on this revision with `--mode score`. Floating-point kernels and hardware can affect sampled sequences.
 
 Target check-ins do not train the behavioral tokenizer or landing head. The recorded experiments use target training-home population marginals for initialization. Matched-shell evaluation separately uses target user/day structure after generation. Each direction's information boundary is documented.
 
@@ -80,6 +86,6 @@ The NYC → Paris landing curve is a new seed-42 rerun on the frozen source code
 | Activity prototypes | Source events → three residual FSQ codes and reconstructed features | `SHAPE/stage2/` |
 | Spatial generation | Source behavior, target map, home marginal → target-grid trajectories | `SHAPE/stage3/` |
 
-The fixed model enables opportunity-weighted rank and physical distance cost, with personal-scale parameters λ = κ = 0. Global generated-visit memory remains active. Distance-cost parameters are fitted from source training jumps. See [method details](docs/method.md) and [the code map](docs/code-map.md). `run_full_pipeline.py` is the four-direction entry point; `SHAPE/reproduce.py` performs generation and evaluation. Legacy archive schema identifiers remain for compatibility.
+The fixed model uses opportunity-weighted rank with personal-scale parameters λ = κ = 0 and global generated-visit memory. Physical distance is used to order static opportunities, not as an additional candidate penalty or a target-trajectory calibration. Stage 2 retains reconstruction, quantization, temporal/future objectives and aggregate jump/POI auxiliary losses; it assigns no prescribed semantic targets to individual quantizer layers. See [method details](docs/method.md) and [the code map](docs/code-map.md). `run_full_pipeline.py` is the four-direction entry point; `SHAPE/reproduce.py` performs generation and evaluation. New tokenizer/source archives carry the `residual_fsq_no_layer_semantics_v2` training contract.
 
 Outputs include `predictions.npz`, input hashes, runtime provenance, `metric_draws.csv`, `metrics.csv`, `five_metrics.csv`, and `result.json`. The scorer computes values from trajectories; it never replaces them with the reference table. Executed checks and their limits are in [verification.md](docs/verification.md).

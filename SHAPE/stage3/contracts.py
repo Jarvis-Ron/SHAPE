@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import numpy as np
+from SHAPE.stage2.config import TOKENIZER_TRAINING_CONTRACT
 
 
 CODES_SCHEMA = "civic_phase2_daily_codes_v1"
@@ -45,6 +46,17 @@ def require_scalar(payload, key, expected=None):
             % (key, value, expected)
         )
     return value
+
+
+def require_current_tokenizer_training(payload):
+    contract = payload.get("tokenizer_training_contract")
+    if contract is None or scalar(contract) != TOKENIZER_TRAINING_CONTRACT:
+        raise ValueError(
+            "Legacy source codes do not satisfy the tokenizer training contract. "
+            "Retrain Stage 2 without layer semantic supervision, export fresh "
+            "source codes and retrain the landing head (full runner: --mode train). "
+            "Historical predictions remain available for --mode score/verify."
+        )
 
 
 def save_npz(path, **arrays):

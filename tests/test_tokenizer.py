@@ -112,14 +112,19 @@ def test_jump_auxiliary_loss_runs_through_train_and_eval_loops():
     )
     eval_metrics = evaluate(model, loader, torch.device("cpu"))
 
-    assert len(train_metrics) == 15
+    assert len(train_metrics) == 14
     assert train_metrics[6] > 0.0
     assert train_metrics[7] > 0.0
-    assert train_metrics[8] > 0.0
-    assert len(eval_metrics) == 13
+    assert train_metrics[5] > 0.0
+    assert train_metrics[0] == pytest.approx(
+        train_metrics[1] + 5 * train_metrics[8] + train_metrics[9]
+        + 4 * train_metrics[10] + .1 * train_metrics[3] + train_metrics[4]
+        + .1 * train_metrics[5] + .05 * train_metrics[6] + .05 * train_metrics[7],
+        rel=1e-5)
+    assert len(eval_metrics) == 12
     assert eval_metrics[8] > 0.0
     assert eval_metrics[9] > 0.0
-    assert eval_metrics[10] > 0.0
+    assert eval_metrics[7] > 0.0
 
 
 def test_route_a_encoder_ignores_city_specific_and_target_only_columns():
@@ -257,38 +262,48 @@ def test_route_a_surprisal_is_explicit_opt_in_and_keeps_poi_fallback():
     )
 
 
-def test_route_a_time_cycles_and_three_semantic_targets_without_surprisal():
-    times = torch.zeros(1, 2, 135)
-    times[0, 1, 17] = 1.0
-    times[0, 1, 18] = 24.0
-    periodic = SurprisalEncoder._cyclic_time_features(times)
-    assert torch.allclose(periodic[:, 0], periodic[:, 1], atol=1e-6)
-
-    encoder = SurprisalEncoder(d_model=8, use_surprisal=False).eval()
-    rq = ResidualRQ(
-        num_quantizers=3,
-        codebook_size=8,
-        embedding_dim=8,
-        quantizer_type="fsq",
-        fsq_levels=(2, 2, 2),
-    )
-    _, paths = encoder(torch.randn(2, 3, 135))
-    targets = rq.compute_semantic_target(paths)
-    assert len(targets) == 3
-    assert all(target.shape == (2, 3, 8) for target in targets)
-    assert all(torch.count_nonzero(target) > 0 for target in targets)
-    assert torch.equal(targets[2], paths["poi"])
+def test_residual_layers_learn_without_assigned_feature_targets():
+    torch.manual_seed(42)
+    model = build_tokenizer(dict(d_model=8, nhead=2, num_encoder_layers=1,
+        num_decoder_layers=1, dim_feedforward=16, dropout=0.0))
+    x = torch.randn(2, 4, 136)
+    x[..., 124] = 6
+    x[..., 127] = .1
+    outputs = model(x, attention_mask=torch.ones(2, 4, dtype=torch.bool))
+    assert len(outputs) == 8
+    reconstructed, vq_loss, _, _, z_q, codes, future, temporal = outputs
+    loss = (model.compute_loss(x, reconstructed) + vq_loss
+            + .1 * future + temporal
+            + .125 * model.compute_jump_aux_loss(x, z_q)
+            + .075 * model.compute_poi_aux_loss(x, z_q))
+    loss.backward()
+    assert codes.shape == (2, 4, 3)
+    for projection in model.rq_layer.residual_projections:
+        assert torch.isfinite(projection.weight.grad).all()
+        assert torch.count_nonzero(projection.weight.grad) > 0
 
 
+@pytest.mark.parametrize("name,value", [
+    ("injection_mode", "layered"), ("injection_mode", "first_layer_all"),
+    ("semantic_loss_weight", 0), ("semantic_loss_weight", .02),
+    ("semantic_warm_start_steps", 200), ("semantic_warm_start_lr", .001),
+    ("aux_routing", "layer_targeted"),
+])
+def test_removed_semantic_options_cannot_be_silently_reenabled(name, value):
+    with pytest.raises(ValueError, match="options were removed"):
+        build_tokenizer({name: value})
 
 
-
-
-def test_injection_mode_rejects_unknown_value():
-    with pytest.raises(ValueError, match="injection_mode"):
-        ResidualRQ(injection_mode="unknown")
-
-
+def test_legacy_tokenizer_cannot_be_mislabeled_as_unsupervised(tmp_path):
+    config = dict(MODULE2_CONFIG, d_model=8, nhead=2, num_encoder_layers=1,
+                  num_decoder_layers=1, dim_feedforward=16)
+    model = build_tokenizer(config)
+    config.pop("tokenizer_training_contract")
+    config.update(injection_mode="layered", semantic_loss_weight=.02)
+    path = tmp_path / "legacy.pth"
+    torch.save({"config": config, "model_state_dict": model.state_dict()}, path)
+    with pytest.raises(RuntimeError, match="retrain Stage 2"):
+        load_tokenizer(path, torch.device("cpu"))
 
 
 def test_fsq_has_exact_64_code_interface_and_gradients():
@@ -404,12 +419,11 @@ def test_residual_rq_fsq_keeps_three_layer_signature_without_ema():
         [False, False, True, True],
     ])
 
-    z_q, loss, perplexity, codes, _, semantic, guided = rq(z_e, mask=mask)
+    z_q, loss, perplexity, codes, _, guided = rq(z_e, mask=mask)
 
     assert z_q.shape == z_e.shape
     assert codes.shape == (2, 4, 3)
     assert len(guided) == 3
-    assert semantic is None
     assert loss.item() >= 0.0
     assert rq.last_vq_entropy.item() >= 0.0
     assert perplexity.ndim == 0

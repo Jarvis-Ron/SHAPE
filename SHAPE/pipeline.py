@@ -33,7 +33,7 @@ def build_plan(spec, output, device='cpu'):
     codes = data/'source_codes.npz'
     landing = training/'landing.pth'
     add('train-tokenizer','--city',source,'--data-dir',event_dir,'--device',device,
-        '--quantizer-type','fsq','--injection-mode','layered','--num-quantizers','3',
+        '--quantizer-type','fsq','--num-quantizers','3',
         '--codebook-size','64','--fsq-levels','4,4,4','--jump-aux-weight','0.125',
         '--poi-aux-weight','0.075','--time-aux-weight','0',
         '--encoder-perturb-mode','iid','--encoder-perturb-sigma','0.1',

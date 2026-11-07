@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from .config import MODULE2_CONFIG as C
+from .config import MODULE2_CONFIG as C, require_no_semantic_options
 
 
 @torch.no_grad()
@@ -84,11 +84,11 @@ def _fsq_acceptance_failures(layer_metrics, diagnostics,
 def train_epoch(model, loader, optimizer, device, grad_clip=1.0, log_interval=50,
                 temporal_weight=1.0, vq_commit_weight=5.0, vq_entropy_weight=1.0,
                 vq_orth_weight=4.0, replace_every=20, replace_n=12,
-                semantic_weight=0.02, jump_aux_weight=0.0,
+                jump_aux_weight=0.0,
                 poi_aux_weight=0.0, time_aux_weight=0.0):
     """Train one epoch."""
     model.train()
-    total_loss = total_recon = total_vq = total_future = total_temporal = total_semantic = 0.0
+    total_loss = total_recon = total_vq = total_future = total_temporal = 0.0
     total_jump_aux = 0.0
     total_poi_aux = 0.0
     total_time_aux = 0.0
@@ -103,7 +103,7 @@ def train_epoch(model, loader, optimizer, device, grad_clip=1.0, log_interval=50
     for step, batch in enumerate(tqdm(loader, desc="  Train", leave=False)):
         x = batch["x"].to(device)
         attention_mask = batch["attention_mask"].to(device)
-        H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss, temporal_loss, semantic_loss = model(x, attention_mask=attention_mask)
+        H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss, temporal_loss = model(x, attention_mask=attention_mask)
         recon_loss = model.compute_loss(x, H_hat, mask=attention_mask)
         jump_aux_loss = model.compute_jump_aux_loss(
             x, z_q, mask=attention_mask
@@ -125,7 +125,7 @@ def train_epoch(model, loader, optimizer, device, grad_clip=1.0, log_interval=50
                        + vq_orth_weight * orth_l)
 
         loss = (recon_loss + weighted_vq + 0.1 * future_loss
-                + temporal_weight * temporal_loss + semantic_weight * semantic_loss
+                + temporal_weight * temporal_loss
                 + jump_aux_weight * jump_aux_loss
                 + poi_aux_weight * poi_aux_loss
                 + time_aux_weight * time_aux_loss)
@@ -154,7 +154,6 @@ def train_epoch(model, loader, optimizer, device, grad_clip=1.0, log_interval=50
         total_vq_orth_w += (vq_orth_weight * orth_l.item()) * bs
         total_future += future_loss.item() * bs
         total_temporal += temporal_loss.item() * bs
-        total_semantic += semantic_loss.item() * bs
         total_jump_aux += jump_aux_loss.item() * bs
         total_poi_aux += poi_aux_loss.item() * bs
         total_time_aux += time_aux_loss.item() * bs
@@ -180,7 +179,7 @@ def train_epoch(model, loader, optimizer, device, grad_clip=1.0, log_interval=50
         metric["quantizer_type"] = layer_type
     usage_ratio = float(np.mean([m["usage_ratio"] for m in layer_metrics]))
     return (total_loss/n, total_recon/n, total_vq/n, total_future/n, total_temporal/n,
-            total_semantic/n, total_jump_aux/n, total_poi_aux/n,
+            total_jump_aux/n, total_poi_aux/n,
             total_time_aux/n,
             total_vq_commit/n, total_vq_entropy/n, total_vq_orth/n,
             total_perp/n, usage_ratio, layer_metrics)
@@ -192,7 +191,6 @@ def evaluate(model, loader, device):
     model.eval()
     total_recon = 0.0
     total_perp = 0.0
-    total_semantic = 0.0
     total_jump_aux = 0.0
     total_poi_aux = 0.0
     total_time_aux = 0.0
@@ -204,7 +202,7 @@ def evaluate(model, loader, device):
         x = batch["x"].to(device)
         attention_mask = batch["attention_mask"].to(device)
 
-        H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss, temporal_loss, semantic_loss = model(x, attention_mask=attention_mask)
+        H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss, temporal_loss = model(x, attention_mask=attention_mask)
         recon_loss = model.compute_loss(x, H_hat, mask=attention_mask)
         jump_aux_loss = model.compute_jump_aux_loss(
             x, z_q, mask=attention_mask
@@ -223,7 +221,6 @@ def evaluate(model, loader, device):
         total_vq_entropy += model.rq_layer.last_vq_entropy.item() * bs
         total_vq_orth += model.rq_layer.last_vq_orth.item() * bs
         total_perp += perplexity.item() * bs
-        total_semantic += semantic_loss.item() * bs
         total_jump_aux += jump_aux_loss.item() * bs
         total_poi_aux += poi_aux_loss.item() * bs
         total_time_aux += time_aux_loss.item() * bs
@@ -237,7 +234,7 @@ def evaluate(model, loader, device):
         metric["quantizer_type"] = layer_type
     usage_ratio = float(np.mean([m["usage_ratio"] for m in layer_metrics]))
     return (total_recon/n, total_vq/n, total_vq_commit/n, total_vq_entropy/n,
-            total_vq_orth/n, total_perp/n, usage_ratio, total_semantic/n,
+            total_vq_orth/n, total_perp/n, usage_ratio,
             total_jump_aux/n, total_poi_aux/n, total_time_aux/n,
             layer_metrics, all_codes)
 
@@ -388,6 +385,7 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
     _log = logger.info if logger else print
     if config is None:
         config = C
+    require_no_semantic_options(config)
     _seed = config.get("seed", 42)
     set_seed(_seed)
     optimizer = torch.optim.AdamW(
@@ -399,7 +397,7 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
     patience_counter = 0
     early_stopping_triggered = False
     history = {"train_loss": [], "train_recon": [], "train_vq": [], "train_vq_commit": [], "train_vq_entropy": [], "train_vq_orth": [],
-               "train_future": [], "train_temporal": [], "train_semantic": [],
+               "train_future": [], "train_temporal": [],
                "train_jump_aux": [], "val_jump_aux": [],
                "train_poi_aux": [], "val_poi_aux": [],
                "train_time_aux": [], "val_time_aux": [],
@@ -509,26 +507,8 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
         if small_sample:
             replace_n = min(16, replace_n)
 
-        # Optional projection warm-start at the start of training
-        sem_warm_steps = config.get("semantic_warm_start_steps", 0)
-        sem_warm_lr = config.get("semantic_warm_start_lr", 1e-3)
-        if epoch == 1 and sem_warm_steps > 0 and hasattr(model.rq_layer, "warm_start_projections"):
-            model.eval()
-            with torch.no_grad():
-                for batch in train_loader:
-                    x_batch = batch["x"].to(device)
-                    attention_mask = batch["attention_mask"].to(device)
-                    emb, feature_paths = model.surprisal_encoder(x_batch)
-                    z_e = model.transformer_encoder(emb, src_key_padding_mask=~attention_mask) \
-                        if attention_mask is not None else model.transformer_encoder(emb)
-                    _ = model.rq_layer.warm_start_projections(
-                        z_e.detach(), feature_paths, mask=attention_mask,
-                        steps=sem_warm_steps, lr=sem_warm_lr)
-                    break
-            model.train()
-
         (train_loss, train_recon, train_vq, train_future, train_temporal,
-         train_semantic, train_jump_aux, train_poi_aux, train_time_aux,
+         train_jump_aux, train_poi_aux, train_time_aux,
          train_vq_commit, train_vq_entropy, train_vq_orth,
          train_perp, train_usage, train_layer_metrics) = \
            train_epoch(model, train_loader, optimizer, device,
@@ -540,7 +520,6 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
                        vq_orth_weight=vq_orth_w,
                        replace_every=replace_every,
                        replace_n=replace_n,
-                       semantic_weight=config.get("semantic_loss_weight", 0.2),
                        jump_aux_weight=config.get("jump_aux_weight", 0.0),
                        poi_aux_weight=config.get("poi_aux_weight", 0.0),
                        time_aux_weight=config.get("time_aux_weight", 0.0))
@@ -568,7 +547,7 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
                     break
         model.train()
         (val_recon, val_vq, val_vq_commit, val_vq_entropy, val_vq_orth,
-         val_perp, val_usage, val_semantic, val_jump_aux, val_poi_aux,
+         val_perp, val_usage, val_jump_aux, val_poi_aux,
          val_time_aux,
          val_layer_metrics,
          val_codes) = evaluate(
@@ -590,7 +569,6 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
         history["train_vq_orth"].append(train_vq_orth)
         history["train_future"].append(train_future)
         history["train_temporal"].append(train_temporal)
-        history["train_semantic"].append(train_semantic)
         history["train_jump_aux"].append(train_jump_aux)
         history["train_poi_aux"].append(train_poi_aux)
         history["train_time_aux"].append(train_time_aux)
@@ -649,7 +627,6 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
             min(count for dimension in m["bucket_counts"] for count in dimension)
             for m in val_fsq_diagnostics
         ])
-        history["val_semantic"] = history.get("val_semantic", []) + [val_semantic]
         elapsed = time.time() - t0
         lr_now = optimizer.param_groups[0]["lr"]
         # Codebook monitoring
@@ -669,11 +646,11 @@ def train_vqvae(model, train_loader, val_loader, config=None, device="cpu",
         history["cb_dead"].append(cb_dead)
         history["cb_unused"].append(cb_unused)
         history["cb_entropy"].append(entropy_ratio)
-        _log("  Epoch %3d/%d | loss=%.4f(val=%.4f) | recon=%.3f future=%.4f temporal=%.4f(w=%.2f) sem=%.4f jump=%.4f(w=%.2f) poi=%.4f(w=%.2f) time=%.4f(w=%.2f) | vq=%.4f(commit=%.4f ent=%.4f orth=%.4f, val=%.4f) | perp=%.1f(%.2f%%) | cb=%d/%d dead=%d H=%.2f | w_c=%.2f w_e=%.4f w_o=%.2f ep=%.3f ema=%.3f | reset=%d | lr=%.2e | %ds" % (
+        _log("  Epoch %3d/%d | loss=%.4f(val=%.4f) | recon=%.3f future=%.4f temporal=%.4f(w=%.2f) jump=%.4f(w=%.2f) poi=%.4f(w=%.2f) time=%.4f(w=%.2f) | vq=%.4f(commit=%.4f ent=%.4f orth=%.4f, val=%.4f) | perp=%.1f(%.2f%%) | cb=%d/%d dead=%d H=%.2f | w_c=%.2f w_e=%.4f w_o=%.2f ep=%.3f ema=%.3f | reset=%d | lr=%.2e | %ds" % (
             epoch, n_epochs,
             train_loss, val_loss,
             train_recon, train_future, train_temporal, temporal_weight,
-            train_semantic, train_jump_aux,
+            train_jump_aux,
             config.get("jump_aux_weight", 0.0),
             train_poi_aux, config.get("poi_aux_weight", 0.0),
             train_time_aux, config.get("time_aux_weight", 0.0),

@@ -9,12 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-SEMANTIC_TARGET_KEYS = ["time_spatial", "behavioral", "surprisal"]
-
-
-INJECTION_MODES = ("layered", "first_layer_all")
-
-
 @torch.no_grad()
 def summarize_code_usage_counts(counts):
     """Return per-layer usage diagnostics from ``[layers, codes]`` counts."""
@@ -104,7 +98,7 @@ class FSQQuantizer(nn.Module):
         if diversity_tau <= 0:
             raise ValueError("diversity_tau must be positive")
         # Residual magnitudes shrink naturally in later RQ layers.  Normalize
-        # each semantic residual before the 3-D bottleneck, then let every
+        # each residual before the 3-D bottleneck, then let every
         # layer learn its own bounded input scale instead of collapsing into
         # the two bins around zero.
         self.input_norm = nn.LayerNorm(embedding_dim)
@@ -627,49 +621,25 @@ class ResidualQuantizer(nn.Module):
 
 
 class ResidualRQ(nn.Module):
-    """Design C: shared representation + per-layer semantic projection + sequential RQ.
+    """Sequential residual quantization with learned, unassigned projections.
 
-    The shared transformer produces z_e [B, T, D] containing ALL information. For each
-    of the L layers we maintain:
-      - a semantic projection head proj_l: D -> D that maps the current residual into
-        the semantic subspace layer l is responsible for (time+spatial / behavioral /
-        POI+optional surprisal), and
-      - a single-layer codebook e_l.
-
-    Forward loop (residual in the mixed z_e space):
-      z_q = 0 ; residual = z_e
-      for l in layers:
-          guided   = proj_l(residual)                 # semantic subspace
-          code_l   = argmin(||guided - e_l||)
-          z_q_l    = e_l * inject_scales[l]           # codebook vector in guided space
-          z_q     += z_q_l
-          residual = residual - z_q_l.detach()        # residual updated in mixed space
-
-    ``layered`` semantic injection aligns every projection with its assigned
-    feature path. ``first_layer_all`` instead aligns only layer 0 with the sum of
-    all feature paths; later residual layers receive no explicit semantic target
-    and learn through reconstruction, quantization and auxiliary objectives.
-    Codebook orthogonality (orth_loss) is kept in both modes.
+    All layers learn through the shared reconstruction, quantization and
+    aggregate auxiliary objectives. No layer receives a feature-path target.
     """
 
     def __init__(self, num_quantizers=3, codebook_size=64, embedding_dim=256,
                  commitment_cost=0.25, epsilon=1e-5, ema_decay=0.9,
                  entropy_weight=1.0, orth_weight=0.2, inject_scale_init=1.0,
-                 semantic_keys=None, entropy_tau=0.1,
+                 entropy_tau=0.1,
                  quantizer_type="ema", quantizer_types=None,
                  fsq_levels=(4, 4, 4),
                  fsq_scale_init=1.0, fsq_diversity_weight=0.01,
-                 fsq_diversity_tau=0.2, injection_mode="layered"):
+                 fsq_diversity_tau=0.2):
         super().__init__()
         self._num_quantizers = num_quantizers
         self.codebook_size = codebook_size
         self.embedding_dim = embedding_dim
         self.orth_weight = orth_weight
-        self.injection_mode = str(injection_mode).lower()
-        if self.injection_mode not in INJECTION_MODES:
-            raise ValueError(
-                "injection_mode must be layered or first_layer_all"
-            )
         self.quantizer_type = str(quantizer_type).lower()
         if quantizer_types is None:
             if self.quantizer_type not in ("ema", "fsq"):
@@ -698,25 +668,6 @@ class ResidualRQ(nn.Module):
                 raise ValueError(
                     "quantizer_type disagrees with per-layer layout"
                 )
-        if semantic_keys is None:
-            semantic_keys = SEMANTIC_TARGET_KEYS
-        if self.injection_mode == "first_layer_all":
-            # Only L0 consumes a semantic key in this mode.  Keep explicit
-            # placeholders so 1/2/3/4-layer rate--distortion arms share the
-            # same implementation without inventing supervision for free
-            # residual layers.
-            self.semantic_keys = ["complete"] + [
-                "free_residual"
-            ] * (int(num_quantizers) - 1)
-        else:
-            self.semantic_keys = list(semantic_keys[:num_quantizers])
-            if len(self.semantic_keys) != int(num_quantizers):
-                raise ValueError(
-                    "layered injection defines semantic targets for at most "
-                    "%d quantizers; use first_layer_all for a deeper audit arm"
-                    % len(semantic_keys)
-                )
-
         if "fsq" in self.quantizer_types:
             if math.prod(tuple(fsq_levels)) != codebook_size:
                 raise ValueError(
@@ -748,17 +699,11 @@ class ResidualRQ(nn.Module):
                     entropy_tau=entropy_tau,
                 ))
         self.rq_layers = nn.ModuleList(layers)
-        # Semantic projection heads (D -> D). Warm-started to the feature paths.
-        self.semantic_projections = nn.ModuleList([
+        # Learned residual projections without prescribed feature targets.
+        self.residual_projections = nn.ModuleList([
             nn.Linear(embedding_dim, embedding_dim, bias=False)
             for _ in range(num_quantizers)
         ])
-        if self.injection_mode == "first_layer_all":
-            # Free residual layers should begin as transparent residual paths,
-            # then specialize under the ordinary end-to-end objectives.
-            for projection in self.semantic_projections[1:]:
-                nn.init.eye_(projection.weight)
-
         # Cached per-forward VQ loss breakdown (scalars), updated in forward().
         # Read by the trainer for logging without changing the return signature.
         self.last_vq_commit = None
@@ -769,86 +714,16 @@ class ResidualRQ(nn.Module):
         self.last_quantized_layers = None
         self.last_reset_by_layer = None
 
-    @property
-    def injected_layers(self):
-        """Indices that receive explicit semantic supervision."""
-        if self.injection_mode == "first_layer_all":
-            return (0,)
-        return tuple(range(self._num_quantizers))
-
-    def compute_semantic_target(self, feature_paths):
-        """Build per-layer semantic targets from the SurprisalEncoder feature paths."""
-        if self.injection_mode == "first_layer_all":
-            complete_target = (
-                feature_paths["time"]
-                + feature_paths["spatial"]
-                + feature_paths["behavioral"]
-                + feature_paths["poi"]
-                + feature_paths["spa_surprisal"]
-                + feature_paths["sem_surprisal"]
-            )
-            return [complete_target] + [None] * (
-                self._num_quantizers - 1
-            )
-        targets = []
-        for key in self.semantic_keys:
-            if key == "time_spatial":
-                targets.append(feature_paths["time"] + feature_paths["spatial"])
-            elif key == "behavioral":
-                targets.append(feature_paths["behavioral"])
-            elif key == "surprisal":
-                targets.append(
-                    feature_paths["poi"]
-                    + feature_paths["spa_surprisal"]
-                    + feature_paths["sem_surprisal"]
-                )
-            else:
-                raise KeyError(f"Unknown semantic target key: {key}")
-        return targets
-
-    def warm_start_projections(self, z_e, feature_paths, mask=None, steps=200, lr=1e-3):
-        """Pre-fit each proj_l so proj_l(z_e) is close to its semantic feature path.
-
-        Runs `steps` of linear-regression style gradient descent against the
-        collected z_e / feature-path activations. Keeps the shared encoder frozen.
-        """
-        with torch.enable_grad():
-            z_e = z_e.detach()
-            targets = self.compute_semantic_target(feature_paths)
-            if mask is not None:
-                keep = mask.bool()
-            else:
-                keep = torch.ones(z_e.shape[:2], dtype=torch.bool, device=z_e.device)
-            z_e_flat = z_e[keep].reshape(-1, self.embedding_dim)
-            target_flat = {
-                layer: targets[layer][keep].reshape(-1, self.embedding_dim)
-                for layer in self.injected_layers
-            }
-            if z_e_flat.numel() == 0:
-                return
-            for l in self.injected_layers:
-                proj = self.semantic_projections[l]
-                if proj.weight.grad is not None:
-                    proj.weight.grad.zero_()
-                opt = torch.optim.SGD(proj.parameters(), lr=lr)
-                for _ in range(steps):
-                    opt.zero_grad()
-                    loss = F.mse_loss(proj(z_e_flat), target_flat[l])
-                    loss.backward()
-                    opt.step()
-
-    def forward(self, z_e, feature_paths=None, mask=None, return_all_codes=True,
+    def forward(self, z_e, mask=None, return_all_codes=True,
                 quantizer_perturb_mode="none", quantizer_perturb_sigma=0.0):
-        """Sequential residual quantization guided by per-layer semantic projections.
+        """Sequential residual quantization through learned projections.
 
         Args:
           z_e: [B, T, D] shared-transformer mixed representation.
-          feature_paths: optional dict from SurprisalEncoder; when given, semantic_loss
-                         is computed.
           mask: [B, T] optional; used to zero out the decoder-side contribution and
                 restrict EMA updates to real steps when provided by caller via .detach().
         Returns:
-          z_q, vq_loss, perplexity, codes, per_layer_losses, semantic_loss, guided_list
+          z_q, vq_loss, perplexity, codes, per_layer_losses, guided_list
         """
         B, T, D = z_e.shape
         device = z_e.device
@@ -871,15 +746,8 @@ class ResidualRQ(nn.Module):
         if perturb_sigma < 0.0:
             raise ValueError("quantizer_perturb_sigma must be non-negative")
 
-        # Semantic targets are only evaluated on the per-layer residual (not z_e),
-        # matching what proj_l actually sees during quantization.
-        semantic_targets = None
-        if feature_paths is not None:
-            semantic_targets = self.compute_semantic_target(feature_paths)
-            semantic_loss = z_e.new_zeros(())
-
         for l in range(self._num_quantizers):
-            guided = self.semantic_projections[l](residual)
+            guided = self.residual_projections[l](residual)
             guided_list.append(guided)
             quantizer_input = guided
             # Mixed-stack M5 noise is a direct FSQ-input intervention.  EMA
@@ -907,21 +775,6 @@ class ResidualRQ(nn.Module):
             z_q_l = z_q_raw * self.rq_layers[l].inject_scales[0]
             quantized_layers.append(z_q_l)
 
-            # Semantic alignment on the CURRENT residual (same input as guided),
-            # not on the full z_e.  This makes proj_l learn how to extract its
-            # semantic from what is actually left after prior layers.
-            if (semantic_targets is not None
-                    and semantic_targets[l] is not None):
-                if mask is not None:
-                    if mask.any():
-                        semantic_loss = semantic_loss + F.mse_loss(
-                            guided[mask.bool()], semantic_targets[l][mask.bool()]
-                        )
-                else:
-                    semantic_loss = semantic_loss + F.mse_loss(
-                        guided, semantic_targets[l]
-                    )
-
             z_q = z_q + z_q_l
             residual = residual - z_q_l.detach()
             codes_list.append(codes_l)
@@ -929,11 +782,6 @@ class ResidualRQ(nn.Module):
             commit_sum = commit_sum + commit_l
             entropy_sum = entropy_sum + ent_l
             perp_sum = perp_sum + perp_l
-
-        if semantic_targets is not None:
-            semantic_loss = semantic_loss / len(self.injected_layers)
-        else:
-            semantic_loss = None
 
         codes = torch.cat(codes_list, dim=-1)  # [B, T, L]
         perplexity = perp_sum / max(1, self._num_quantizers)
@@ -973,7 +821,7 @@ class ResidualRQ(nn.Module):
 
         if not return_all_codes:
             codes = codes[..., 0]
-        return z_q, vq_loss, perplexity, codes, None, semantic_loss, guided_list
+        return z_q, vq_loss, perplexity, codes, None, guided_list
 
     @torch.no_grad()
     def replace_unused_codes(self, z_e, mask=None, n_replace=16, threshold=1.0,

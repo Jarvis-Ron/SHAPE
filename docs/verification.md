@@ -1,5 +1,30 @@
 # Executed verification
 
+## Current implementation checks
+
+`python -m pytest -q`: **77 passed** on CPU. Python compilation and the
+four-direction training-plan dry run also passed. No GPU run was performed.
+
+The regression suite checks removed semantic options and legacy checkpoint
+rejection, residual-projection gradients, the exact training-loss components,
+rank-preserving distance-scale invariance, removal of physical-cost sampler
+arguments, stationary source profiles, and historical source-code rejection
+before generation reads target data.
+
+A synthetic integration test trains a small tokenizer for one epoch, saves and
+reloads it, exports 72 events, trains a landing head for one epoch, and generates
+trajectories on the static Paris grid with a synthetic aggregate home quota.
+It runs the default runtime configuration through the production sampler and
+checks target vocabulary and output alignment. This is an interface and
+mechanism check, not a research accuracy experiment. No full-data retraining
+or performance evaluation of the changed model has been executed.
+
+## Historical release verification
+
+The checks below describe the earlier release, before removing layer semantic
+supervision and physical distance correction. Their numerical receipts and
+bundled artifacts are retained; they do not validate the changed model's scores.
+
 The packaged native scorer recomputed all four historical rows from the supplied
 original generated trajectories and target references. Across 11,025 primary
 metric values, the largest absolute discrepancy from the archived original

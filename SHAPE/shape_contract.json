@@ -1,11 +1,10 @@
 {
-  "schema": "shape_code_v1",
+  "schema": "shape_code_v2",
   "model": "SHAPE",
   "variant": {
     "weighted_rank": true,
     "lambda": 0,
-    "kappa": 0,
-    "cost": true
+    "kappa": 0
   },
   "frozen_landing": {
     "scale_mode": "rank",
@@ -48,10 +47,11 @@
   "information": {
     "behavior": "observed_source_codes_and_source_event_schedule",
     "prototype_semantics": "source_train",
-    "distance_cost_fit": "source_train",
     "target_map": "complete_static_grid_vocabulary_and_raw_POI_counts",
     "target_checkins_for_generation": "population_home_quota_only",
     "target_distance_calibration": false,
-    "target_test": "unchanged_matched_person_day_evaluation_shell_only"
+    "target_test": "unchanged_matched_person_day_evaluation_shell_only",
+    "physical_distance_correction": false,
+    "tokenizer_training_contract": "residual_fsq_no_layer_semantics_v2"
   }
 }

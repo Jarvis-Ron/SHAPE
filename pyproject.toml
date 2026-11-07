@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "shape-code"
 version = "1.0.0"
-description = "SHAPE: source-behavior transfer with opportunity-weighted rank and distance cost"
+description = "SHAPE: residual activity prototypes and opportunity-rank trajectory transfer"
 requires-python = ">=3.10"
 dependencies = [
   "numpy>=1.24", "torch>=2.2", "pandas>=2.0", "scipy>=1.10",

@@ -1,6 +1,6 @@
 # Data and evaluation contracts
 
-All four experiments use the final SHAPE mechanism, retaining the recorded source cohorts, generation seeds, target references, and scoring units.
+All four archived experiments used the earlier mechanism with layer semantic supervision and physical distance cost. Their recorded source cohorts, generation seeds, target references, scores and scoring units are retained. They are not results for the current model, which removes those mechanisms and requires new training/generation.
 
 | Direction | Generation seeds | Scoring | Mean and sample SD (ddof=1) |
 |---|---|---|---|
@@ -29,13 +29,13 @@ JSD uses base-2 logarithms. Shell evaluation assigns source donor days to target
 - Generated trajectories follow encoded observed source activities and timing; this release has no separate behavior-code generator.
 - The three shell experiments initialize from target training-day modal homes for reference-eligible users. Only training grid/user/split arrays enter the home extractor; the sampler receives the aggregate marginal and static context. Eligibility uses existing train/test split membership.
 - CA → NYC generation reads an exported aggregate home quota over all 1,083 NYC training users. It does not open the target reference during generation; evaluation reads it afterward.
-- Distance cost and code-conditioned semantics use source training data. Revisit memory uses generated past visits. Target test locations are scored after generation. Matched-shell evaluation separately uses target user/day structure.
+- Current code-conditioned opportunity-rank/attraction semantics use source training data. Physical distance cost and target-distance calibration have been removed; the archived results had a source-fitted distance cost. Revisit memory uses generated past visits. Target test locations are scored after generation. Matched-shell evaluation separately uses target user/day structure.
 
 Here, zero-shot denotes no target check-in training of the behavioral model. Target population marginals and evaluation shells are additional information and are reported explicitly.
 
 ## Artifact formats
 
-`source_codes.npz` includes source train/validation/test event codes, reconstructed features, grid IDs, minutes, offsets, dates, users, split labels, and tokenizer binding. `landing.pth` binds the learned query head to that source archive.
+`source_codes.npz` includes source train/validation/test event codes, reconstructed features, grid IDs, minutes, offsets, dates, users, split labels, and tokenizer binding. New exports additionally require `tokenizer_training_contract=residual_fsq_no_layer_semantics_v2`. `landing.pth` binds the learned query head to that source archive. The new generation path rejects bundled archives without that contract; historical scoring does not require it.
 
 `target_reference.npz` contains exactly eight arrays: `grid_id`, `minute`, `day_offsets`, `day_user_ids`, `day_dates`, `day_splits`, `event_user_ids`, `event_splits`. Target tokenizer features are unnecessary.
 

@@ -14,6 +14,7 @@ import numpy as np
 import torch
 
 from SHAPE.reproduce import check_inputs, evaluate, generate, read_spec
+from SHAPE.stage2.config import TOKENIZER_TRAINING_CONTRACT
 from SHAPE.stage3.contracts import sha256_file, write_json
 
 ROOT = Path(__file__).resolve().parent
@@ -44,7 +45,8 @@ def verify_reference(direction):
                 std, reference['sample_std'], rtol=0, atol=1e-12):
             raise ValueError(f'Reference summary differs from recorded draws: {direction}/{metric}')
         result[metric] = dict(mean=mean, std=std)
-    print(json.dumps(dict(direction=direction, verification='archived_draws', metrics=result)), flush=True)
+    print(json.dumps(dict(direction=direction, verification='archived_draws',
+        artifact_origin='historical_semantic_supervision_and_distance_cost', metrics=result)), flush=True)
     return result
 
 
@@ -65,7 +67,7 @@ def training_plan(spec, output, device, prepared_events=False):
         add('extract-grid', '--checkpoint', training / 'grid.pth', '--output-dir', data / 'grid_latents', '--device', device)
         add('prepare-events', '--city', source, '--config', output / 'city_paths.json', '--seed', 42)
     add('train-tokenizer', '--city', source, '--data-dir', event_dir, '--device', device,
-        '--quantizer-type', 'fsq', '--injection-mode', 'layered', '--num-quantizers', 3,
+        '--quantizer-type', 'fsq', '--num-quantizers', 3,
         '--codebook-size', 64, '--fsq-levels', '4,4,4', '--jump-aux-weight', .125,
         '--poi-aux-weight', .075, '--time-aux-weight', 0, '--encoder-perturb-mode', 'iid',
         '--encoder-perturb-sigma', .1, '--epochs', 50, '--batch-size', 196,
@@ -107,6 +109,9 @@ def train(spec, output, device, prepared_events=False):
                         landing_checkpoint=str(output / 'training' / 'landing.pth'))
         new_spec.pop('original_shell_plans', None)
         new_spec.pop('archived_predictions', None)
+        new_spec.pop('bundled_artifacts', None)
+        new_spec['tokenizer_training_contract'] = TOKENIZER_TRAINING_CONTRACT
+        new_spec['artifact_origin'] = 'fresh_training'
         new_spec['expected_sha256'] = {key: sha256_file(new_spec[key]) for key in spec['expected_sha256']}
         write_json(output / 'transfer.json', new_spec)
         receipt['status'] = 'complete'
@@ -122,7 +127,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--direction', choices=(*DIRECTIONS, 'all'), default='all')
     parser.add_argument('--mode', choices=('verify', 'score', 'reproduce', 'train'), default='score',
-                        help='verify: archived draws; score: original predictions; reproduce: frozen-model generation; train: fresh training and generation')
+                        help='verify: historical draws; score: historical predictions; reproduce: generation from current-contract inputs (bundled historical weights are rejected); train: fresh training and generation')
     parser.add_argument('--output', default='results/shape')
     parser.add_argument('--device', default='cpu')
     parser.add_argument('--workers', type=int, default=4)

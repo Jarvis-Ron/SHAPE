@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from .rqvae_modules import ResidualRQ, SEMANTIC_TARGET_KEYS
+from .rqvae_modules import ResidualRQ
 
 
 class SurprisalEncoder(nn.Module):
@@ -29,7 +29,7 @@ class SurprisalEncoder(nn.Module):
     statistics (128:135) never enter the encoder.  This is Route A's pure
     encoder-side change: existing event archives do not need to be rebuilt.
 
-    Returns both the main output and the feature paths for RQ layer injection.
+    Returns the mixed output and diagnostic feature paths; RQ sees only the mixed output.
     """
 
     def __init__(self, d_model=256, d_hidden=64, d_proj=16,
@@ -124,8 +124,7 @@ class SurprisalEncoder(nn.Module):
             + behavior_out
         )
 
-        # Layer 2 uses POI as a stable target and adds surprisal only when the
-        # switch is enabled.  Thus all three RQ semantic paths remain active.
+        # Diagnostic paths are not assigned to quantizer layers.
         feature_paths = {
             "time": time_out,
             "spatial": spatial_out,
@@ -140,8 +139,8 @@ class SurprisalEncoder(nn.Module):
 class RQVAETransformerExtractor(nn.Module):
     """RQVAE Transformer with 3-layer Residual Quantization.
 
-    Output 9-tuple: (H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss,
-                     temporal_loss, semantic_loss)
+    Output 8-tuple: (H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss,
+                     temporal_loss)
     where codes: [B, T, 3] (3-layer RQ indices)
     """
 
@@ -163,7 +162,7 @@ class RQVAETransformerExtractor(nn.Module):
                  time_aux_enabled=False,
                  time_bin_boundaries=(5.0, 10.0, 14.0, 18.0, 22.0),
                  encoder_perturb_mode="none", encoder_perturb_sigma=0.0,
-                 aux_routing="aggregate", injection_mode="layered"):
+                 aux_routing="aggregate"):
         super().__init__()
 
         self.d_model = d_model
@@ -179,10 +178,8 @@ class RQVAETransformerExtractor(nn.Module):
         self.poi_aux_enabled = bool(poi_aux_enabled)
         self.time_aux_enabled = bool(time_aux_enabled)
         self.aux_routing = str(aux_routing).lower()
-        if self.aux_routing not in ("aggregate", "layer_targeted"):
-            raise ValueError(
-                "aux_routing must be aggregate or layer_targeted"
-            )
+        if self.aux_routing != "aggregate":
+            raise ValueError("Only aggregate auxiliary supervision is supported")
         self.encoder_perturb_mode = str(encoder_perturb_mode).lower()
         self.encoder_perturb_sigma = float(encoder_perturb_sigma)
         if self.encoder_perturb_mode not in ("none", "iid", "batch_shift"):
@@ -214,7 +211,7 @@ class RQVAETransformerExtractor(nn.Module):
             encoder_layer, num_layers=num_encoder_layers,
         )
 
-        # Step 3: semantic-guided sequential residual quantizer (design C)
+        # Step 3: sequential residual quantizer without layer supervision
         self.rq_layer = ResidualRQ(
             num_quantizers=num_quantizers,
             codebook_size=codebook_size,
@@ -223,7 +220,6 @@ class RQVAETransformerExtractor(nn.Module):
             entropy_weight=entropy_weight,
             orth_weight=orth_weight,
             inject_scale_init=inject_scale_init,
-            semantic_keys=SEMANTIC_TARGET_KEYS,
             entropy_tau=entropy_tau,
             quantizer_type=quantizer_type,
             quantizer_types=quantizer_types,
@@ -231,7 +227,6 @@ class RQVAETransformerExtractor(nn.Module):
             fsq_scale_init=fsq_scale_init,
             fsq_diversity_weight=fsq_diversity_weight,
             fsq_diversity_tau=fsq_diversity_tau,
-            injection_mode=injection_mode,
         )
 
         # Step 4: TransformerDecoder
@@ -284,7 +279,7 @@ class RQVAETransformerExtractor(nn.Module):
             self.time_head = None
 
     def encode(self, x, mask=None):
-        emb, feature_paths = self.surprisal_encoder(x)
+        emb, _ = self.surprisal_encoder(x)
         if mask is not None:
             # Replace virtual positions with zeros
             emb = emb * mask.unsqueeze(-1).float()
@@ -332,14 +327,14 @@ class RQVAETransformerExtractor(nn.Module):
         device = x.device
 
         # 1. Encode
-        emb, feature_paths = self.surprisal_encoder(x)
+        emb, _ = self.surprisal_encoder(x)
 
         # 2. SHARED transformer encodes the full mixed representation (design A)
         if attention_mask is not None:
             emb = emb * attention_mask.unsqueeze(-1).float()
         z_e = self.transformer_encoder(emb)
 
-        # 3. Semantic-guided sequential residual quantization (design C)
+        # 3. Sequential residual quantization of the shared representation
         if self.rq_layer.quantizer_type == "mixed":
             z_e_quant = self.calibrate_encoder_latents(z_e, encoder_affine)
             rq_perturb_mode = self.encoder_perturb_mode
@@ -352,9 +347,9 @@ class RQVAETransformerExtractor(nn.Module):
             )
             rq_perturb_mode = "none"
             rq_perturb_sigma = 0.0
-        z_q, vq_loss, perplexity, codes, _, semantic_loss, guided_list = \
+        z_q, vq_loss, perplexity, codes, _, guided_list = \
             self.rq_layer(
-                z_e_quant, feature_paths=feature_paths, mask=attention_mask,
+                z_e_quant, mask=attention_mask,
                 quantizer_perturb_mode=rq_perturb_mode,
                 quantizer_perturb_sigma=rq_perturb_sigma,
             )
@@ -372,7 +367,7 @@ class RQVAETransformerExtractor(nn.Module):
         # 6. Temporal loss on the full mixed z_e
         temporal_loss = self._compute_temporal_loss(codes, z_e, x, attention_mask)
 
-        return H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss, temporal_loss, semantic_loss
+        return H_hat, vq_loss, perplexity, z_e, z_q, codes, future_loss, temporal_loss
 
     def compute_loss(self, x, H_hat, mask=None):
         """Surprisal-weighted MSE reconstruction loss."""
@@ -405,7 +400,7 @@ class RQVAETransformerExtractor(nn.Module):
         targets = torch.bucketize(
             jump[valid], self.jump_bin_thresholds.to(jump.dtype), right=False
         )
-        logits = self.jump_head(self._auxiliary_latent("jump", z_q)[valid])
+        logits = self.jump_head(z_q[valid])
         return F.cross_entropy(logits, targets)
 
     def compute_poi_aux_loss(self, x, z_q, mask=None):
@@ -421,27 +416,8 @@ class RQVAETransformerExtractor(nn.Module):
         if not valid.any():
             return z_q.sum() * 0.0
         targets = rounded[valid].long()
-        logits = self.poi_head(self._auxiliary_latent("poi", z_q)[valid])
+        logits = self.poi_head(z_q[valid])
         return F.cross_entropy(logits, targets)
-
-    def _auxiliary_latent(self, axis, aggregate):
-        """Select aggregate or explicitly targeted mixed-stack contribution."""
-        if self.aux_routing != "layer_targeted":
-            return aggregate
-        layers = self.rq_layer.last_quantized_layers
-        if not layers:
-            return aggregate
-        if axis == "jump":
-            return layers[0]
-        if axis == "poi":
-            ema_layers = [
-                value for value, layer_type in zip(
-                    layers, self.rq_layer.quantizer_types
-                ) if layer_type == "ema"
-            ]
-            if ema_layers:
-                return torch.stack(ema_layers, dim=0).sum(dim=0)
-        return aggregate
 
     def time_bin_targets(self, hours):
         """Map local hour-of-day to six fixed, provenance-stable periods."""

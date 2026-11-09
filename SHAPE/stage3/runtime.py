@@ -122,7 +122,7 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
                              verify_release=True, progress=lambda text: None,
                              source_city="nyc", target_city="ca", personal_scale=None,
                              rank_cache_rows=4096, sampling_seeds=SELECTION_SEEDS,
-                             target_home_quota=None):
+                             target_home_quota=None, learned_landing_checkpoint=None):
     if target_home_quota is not None and (
             target_reference is not None or target_cohort is not None
             or personal_scale is None):
@@ -244,10 +244,39 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         source_reference, source_projected, source_raw, source_ids,
         residential_grid_table=source_group)
     attraction, attraction_audit = map_marginal_rescaled_attraction(source_roles, target_raw, target_group)
+    learned_values, learned_audit = None, None
+    if learned_landing_checkpoint is not None:
+        if not rank_only:
+            raise ValueError("learned landing supports only opportunity-rank transfer")
+        from SHAPE.stage3.learned_landing import load_learned_landing, attraction_inputs
+        from SHAPE.stage3.contracts import sha256_file
+        learned, learned_state = load_learned_landing(learned_landing_checkpoint,
+            source_codes=source["reference_codes"], landing_checkpoint=source["checkpoint"],
+            source_grid=source["grid_csv"], source_city=source_city)
+        if learned_state["rank_semantics_sha256"] != source_piecewise["table_sha256"] \
+                or learned_state["attraction_semantics_sha256"] != source_roles["table_sha256"]:
+            raise ValueError("learned landing source statistics changed")
+        with torch.no_grad():
+            attraction = learned.attraction_table(*attraction_inputs(
+                target_raw, target_group, source_roles["category_probabilities"])).numpy()
+        learned_values = learned.export_values()
+        learned_audit = dict(checkpoint_sha256=sha256_file(learned_landing_checkpoint),
+            source_city=source_city, best_epoch=learned_state["best_epoch"],
+            source_val_nll=learned_state["val_nll"], values=learned_values,
+            target_trajectory_training=False, selection_temperature=.75, landing_temperature=1.)
+        attraction_audit = dict(contract="source_learned_residential_POI_soft_mixture_v1",
+            source_semantics_sha256=source_roles["table_sha256"], target_map_only=True,
+            uses_target_flow=False, uses_target_personal_features=False,
+            table_sha256=hashlib.sha256(attraction.tobytes()).hexdigest())
     capacity, capacity_audit = derive_familiar_location_capacity(
         source_reference, source_projected, source_cohort["users"])
     chronology = validate_interleaved_split_chronology(source_cohort)
     parameters = dict(source["arms"]["D1A1_raw"]["parameters"])
+    if learned_values is not None:
+        if parameters["selection_temperature"] != .75:
+            raise ValueError("learned landing requires its fixed selection temperature")
+        parameters.update(distance_tau=learned_values["distance_tau"],
+                          attraction_strength=learned_values["attraction_strength"])
     for key in ("distance_tau", "selection_temperature", "attraction_strength"):
         if key not in parameters or not np.isfinite(float(parameters[key])):
             raise RuntimeError("missing frozen source parameter: " + key)
@@ -275,7 +304,8 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         "target_static": target_static, "target_raw": target_raw,
         "target_group": target_group, "target_l2": target_tensor.detach().cpu().numpy(),
         "normalization": state["normalization"], "lanes": lanes,
-        "selected_beta": closeout["selected_beta"], "base_parameters": parameters,
+        "selected_beta": (closeout["selected_beta"] if learned_values is None
+                          else learned_values["revisit_beta"]), "base_parameters": parameters,
         "source_context_homes": assignments, "source_familiar_capacity": capacity,
         "transferred_attraction_rescaled": attraction,
         "personal_profiles": profiles, "personal_scale": personal_scale,
@@ -294,6 +324,7 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
             "R_chronology": chronology, "A_attraction": attraction_audit,
             "rescale": {**rescale_audit, "target_city": target_city},
             "pareto_distance_cost": False,
+            "learned_landing": learned_audit,
             "tokenizer_training_contract": TOKENIZER_TRAINING_CONTRACT,
             "opportunity_weights": weights_audit,
             "source_distance_semantics": source_piecewise,

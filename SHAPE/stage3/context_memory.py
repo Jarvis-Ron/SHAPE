@@ -64,7 +64,7 @@ def _exact_nearest_indices(distance, count):
     return chosen[np.lexsort((chosen, distance[chosen]))]
 
 
-def _context_cost(source, target):
+def _context_cost(source, target, weights=None):
     source = np.asarray(source, dtype=np.float64)
     target = np.asarray(target, dtype=np.float64)
     residential = np.abs(target[:, 0] - source[0])
@@ -75,15 +75,16 @@ def _context_cost(source, target):
         np.sum(left[None, :] * np.log(left[None, :] / middle), axis=1)
         + np.sum(right * np.log(right / middle), axis=1)
     )
-    return (
-        HOME_CONTEXT_RESIDENTIAL_WEIGHT * residential
-        + HOME_CONTEXT_POI_WEIGHT * poi_jsd
-    )
+    wr,wp = (HOME_CONTEXT_RESIDENTIAL_WEIGHT, HOME_CONTEXT_POI_WEIGHT) if weights is None else weights
+    if not np.isfinite([wr,wp]).all() or min(wr,wp)<=0:
+        raise ValueError("context cost weights must be positive")
+    return wr * residential + wp * poi_jsd
 
 
 def context_quota_home_assignment(
     source_homes, source_context, target_context, target_probability, seed,
     source_grid_ids, target_grid_ids,
+    context_weights=None,
 ):
     """Greedily minimize map-context cost under exact Hamilton capacities."""
     source_homes = np.asarray(source_homes, dtype=np.int64)
@@ -109,7 +110,7 @@ def context_quota_home_assignment(
     for user_index in order:
         available = remaining > 0
         row = _context_cost(
-            source_context[positions[user_index]], target_context[active]
+            source_context[positions[user_index]], target_context[active], context_weights
         )
         row = np.where(available, row, np.inf)
         choice = int(np.argmin(row))
@@ -127,7 +128,7 @@ def context_quota_home_assignment(
     slots = np.repeat(np.arange(len(target_ids), dtype=np.int64), capacities)
     random_slots = slots[rng.permutation(len(slots))]
     random_costs = np.asarray([
-        _context_cost(source_context[position], target_context[[target]])[0]
+        _context_cost(source_context[position], target_context[[target]], context_weights)[0]
         for position, target in zip(positions, random_slots)
     ])
     return target_ids[selected], {
@@ -722,6 +723,8 @@ def _core_landing(
         physical_distance_piecewise_edges_km=spec["piecewise_edges"],
         distance_kernel_tau=float(runtime["base_parameters"]["distance_tau"]),
         history_seed_grid_ids=history,
+        initial_home_count=runtime.get("initial_home_count", 1.0),
+        initial_anchor_count=runtime.get("initial_anchor_count", 1.0),
         distance_log_epsilon_km=DISTANCE_LOG_EPSILON_KM,
         selection_mode="sample", selection_seed=int(selection_seed),
         selection_temperature=float(

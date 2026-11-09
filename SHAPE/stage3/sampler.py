@@ -115,7 +115,10 @@ def group_autoregressive_landing(
     event_code_keys=None, same_code_revisit_beta=0.0,
     same_code_key_layers="L0", same_code_ring_bias=0.0,
     personal_ring_multiplier=None, sequence_revisit_beta=None,
+    initial_home_count=1.0, initial_anchor_count=1.0,
 ):
+    if not all(np.isfinite(v) and v > 0 for v in (initial_home_count, initial_anchor_count)):
+        raise ValueError("initial memory counts must be finite and positive")
     if temperature <= 0 or continuity_sigma <= 0:
         raise ValueError("landing temperature and continuity sigma must be positive")
     if normalized_target_tensor is None:
@@ -574,7 +577,7 @@ def group_autoregressive_landing(
             if current >= len(vocabulary) or vocabulary[current] != home:
                 raise RuntimeError("Home is absent from the target landing vocabulary")
             currents[sequence] = current
-            memories[sequence] = {current: 1.0}
+            memories[sequence] = {current: float(initial_home_count)}
             if same_code_keys is not None:
                 code_memories[sequence] = {
                     int(same_code_keys[start]): {current: 1.0}
@@ -591,12 +594,9 @@ def group_autoregressive_landing(
                             "History seed grid is absent from the target landing "
                             "vocabulary"
                         )
-                    # A fixed pseudo-count keeps beta comparable with the
-                    # historical within-day revisit bonus.  Duplicate/home
-                    # anchors do not silently amplify the prior.
-                    memories[sequence][position] = max(
-                        memories[sequence].get(position, 0.0), 1.0
-                    )
+                    # Home has its own prior. Duplicate anchors are idempotent.
+                    if position != current:
+                        memories[sequence].setdefault(position, float(initial_anchor_count))
             predicted[start] = home
         maximum_length = max(
             (int(offsets[sequence + 1] - offsets[sequence])

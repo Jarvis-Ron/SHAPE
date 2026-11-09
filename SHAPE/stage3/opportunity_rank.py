@@ -117,6 +117,48 @@ class SpatialRankIndex:
         return np.stack([self.row(i) for i in range(len(self.centers))])
 
 
+class SpatialRankBinIndex(SpatialRankIndex):
+    """Exact bins with saturated tail values; for binned generation only.
+
+    All destinations remain in the distribution. Once the strictly closer
+    mass exceeds the final finite edge, exact tail ranks are immaterial to
+    every coarse/fine bin. Do not use these saturated values for rank moments.
+    """
+    def __init__(self, centers, weights=None, cache_rows=64, final_edge=250.):
+        super().__init__(centers,weights,cache_rows)
+        self.final_edge=float(final_edge)
+        if not np.isfinite(self.final_edge) or self.final_edge<=0:
+            raise ValueError('final rank edge must be finite and positive')
+
+    def row(self, origin):
+        origin=int(origin)
+        if not 0<=origin<len(self.centers):raise IndexError('rank origin outside static vocabulary')
+        with self.cache_lock:
+            if origin in self.cache:
+                self.cache.move_to_end(origin);return self.cache[origin]
+        d=distance_row_km(self.centers[origin],self.centers)
+        bound=self.final_edge+1.;k=min(256,len(d))
+        while True:
+            if k==len(d):
+                near=np.arange(len(d));break
+            part=np.argpartition(d,k-1)[:k]
+            # Exclude all boundary ties together. Tail points then have at
+            # least this complete inner mass under strictly-closer semantics.
+            near=np.flatnonzero(d<d[part].max())
+            if self.weights[near].sum()>bound:break
+            k=min(2*k,len(d))
+        order=near[np.argsort(d[near],kind='stable')]
+        prefix=np.r_[0.,np.cumsum(self.weights[order],dtype=np.float64)]
+        values=np.full(len(d),bound,dtype=np.float32)
+        values[near]=prefix[np.searchsorted(d[order],d[near],side='left')].astype(np.float32)
+        with self.cache_lock:
+            self.computed_rows+=1
+            if self.cache_rows:
+                self.cache[origin]=values
+                while len(self.cache)>self.cache_rows:self.cache.popitem(last=False)
+        return values
+
+
 def fit_personal_profiles(artifact, projected_grid, centers, grid_ids, *,
                          rank_index, bin_edges=(0, 1, 5, 20, np.inf), n0=20):
     """Estimate profiles from chronologically ordered source train events only."""

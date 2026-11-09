@@ -233,7 +233,7 @@ def fit(codes,landing_checkpoint,source_grid,learned_landing_checkpoint,pooled_g
     static=StaticGrid.load(source_grid,city=city)
     projected,_=_project_nominal_ids_to_vocabulary(ref['grid_id'],ids,static.spec)
     raw,_=_load_raw_table(source_grid);group,_,_=repair_group_index(raw,city,transport_provenance=load_v4_transport_provenance(source_grid,ids))
-    weights,_=static_poi_weights(source_grid,ids);ranks=SpatialRankIndex(centers,weights,cache_rows=128)
+    weights,_=static_poi_weights(source_grid,ids);ranks=SpatialRankIndex(centers,weights,cache_rows=8192)
     semantics=fit_train_rank_distance_semantics(ref,projected,centers,ids,rank_index=ranks,weights=weights)
     roles=fit_train_code_attraction_semantics(ref,projected,raw,ids,residential_grid_table=group)
     model=LearnedContext().to(device);initial=model.export_values()

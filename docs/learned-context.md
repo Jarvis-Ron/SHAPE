@@ -57,3 +57,11 @@ The V1 fit implementation also materializes rank-bin rows only for observed
 source origins. It still includes every destination and preserves the exact
 full-matrix probabilities. This avoids allocating a full CA-by-CA matrix and
 does not change the statistical model.
+
+Generation computes exact opportunity bins by sorting only the inner mass
+needed by the final finite bin edge. All destinations remain eligible; the
+outer tail shares the same final bin. Strictly-closer distance ties are
+preserved. Source statistics still use unsaturated exact ranks. Tests compare
+both bin assignments and seeded multi-event generations with full sorting.
+Source rank caching retains up to 8,192 observed-origin rows; this affects
+runtime and memory only, not the fitted values or sampling probabilities.

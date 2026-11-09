@@ -221,7 +221,7 @@ def fit(codes, landing_checkpoint, source_grid, output, *, device="cpu", seed=42
     group, _, _ = repair_group_index(raw, city,
         transport_provenance=load_v4_transport_provenance(source_grid, ids))
     weights, weight_audit = static_poi_weights(source_grid, ids)
-    ranks = SpatialRankIndex(centers, weights, cache_rows=128)
+    ranks = SpatialRankIndex(centers, weights, cache_rows=8192)
     print("Fitting source-train rank and attraction statistics", flush=True)
     semantics = fit_train_rank_distance_semantics(reference, projected, centers, ids, rank_index=ranks, weights=weights)
     roles = fit_train_code_attraction_semantics(reference, projected, raw, ids, residential_grid_table=group)

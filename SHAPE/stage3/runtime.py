@@ -244,9 +244,10 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         target_weights, target_weight_audit = static_poi_weights(target_grid_csv, target_ids)
         if not personal_scale.get("weighted_rank", True):
             source_weights, target_weights = None, None
-        source_rank = SpatialRankIndex(source_centers, source_weights)
-        target_rank = SpatialRankIndex(target_centers, target_weights,
-                                      cache_rows=rank_cache_rows)
+        from SHAPE.stage3.opportunity_rank import SpatialRankBinIndex
+        source_rank = SpatialRankIndex(source_centers, source_weights, cache_rows=8192)
+        target_rank = SpatialRankBinIndex(target_centers, target_weights,
+                                      cache_rows=rank_cache_rows,final_edge=RANK_PIECEWISE_EDGES[-2])
         source_piecewise = fit_train_rank_distance_semantics(
             source_reference, source_projected, source_centers, source_ids,
             weights=source_weights, rank_index=source_rank)

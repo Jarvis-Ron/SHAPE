@@ -9,6 +9,7 @@ COMMANDS = {
     'train-tokenizer': ('stage2.train_tokenizer', 'main'),
     'encode-source': ('stage3.prepare_codes', 'main'),
     'train-landing': ('stage3.landing_head', 'train_main'),
+    'train-landing-weights': ('stage3.learned_landing', 'main'),
     'prepare-reference': ('reference', 'main'),
     'run': ('stage3.run', 'main'),
     'pipeline': ('pipeline', 'main'),

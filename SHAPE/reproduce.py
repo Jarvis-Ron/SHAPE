@@ -46,7 +46,8 @@ def read_spec(path):
     if spec['seeds'] != expected:
         raise ValueError('The reference generation seeds must not change')
     for key in ('source_codes', 'landing_checkpoint', 'source_grid', 'target_grid',
-                'target_reference', 'home_quota', 'original_shell_plans', 'archived_predictions'):
+                'target_reference', 'home_quota', 'original_shell_plans', 'archived_predictions',
+                'learned_landing_checkpoint'):
         if spec.get(key):
             spec[key] = str((path.parent / spec[key]).resolve())
     return spec
@@ -54,6 +55,8 @@ def read_spec(path):
 
 def check_inputs(spec, *, generation=False):
     bindings = {}
+    if spec.get('learned_landing_checkpoint') and 'learned_landing_checkpoint' not in spec['expected_sha256']:
+        raise ValueError('Learned landing checkpoint requires an expected checksum')
     for key, expected in spec['expected_sha256'].items():
         if generation and spec['protocol'] == 'direct_source_population' and key == 'target_reference':
             continue
@@ -97,6 +100,8 @@ def generate(spec, output, device, lanes=1):
     cohort, payloads = load_source(spec)
     contract = load_contract()
     landing = contract['frozen_landing']
+    if spec.get('learned_landing_checkpoint') and landing['landing_temperature'] != 1.:
+        raise ValueError('Learned landing requires its fixed landing temperature')
     source = dict(reference_codes=spec['source_codes'], checkpoint=spec['landing_checkpoint'],
                   grid_csv=spec['source_grid'], generated_by_seed={}, binding=bindings,
                   arms={'D1A1_raw': {'parameters': {k: landing[k] for k in
@@ -117,7 +122,8 @@ def generate(spec, output, device, lanes=1):
         cohort, homes, target_users, spec['target_grid'], [device] * lanes,
         source_city=spec['source_city'], target_city=spec['target_city'],
         personal_scale=dict(FIXED_VARIANT), sampling_seeds=tuple(spec['seeds']),
-        target_home_quota=quota, progress=announce)
+        target_home_quota=quota, progress=announce,
+        learned_landing_checkpoint=spec.get('learned_landing_checkpoint'))
     results = _run_e2_tasks(sampling_tasks(payloads, contract, spec['seeds']), payloads, runtime,
         stage_label='SHAPE', progress=lambda done, total, task, dev: announce(f'Completed seed {task["sampling_seed"]}: {done}/{total}'),
         **{k: landing[k] for k in ('landing_temperature', 'candidate_top_k',
@@ -134,7 +140,8 @@ def generate(spec, output, device, lanes=1):
     write_json(output / 'runtime.json', _jsonable(provenance))
     write_json(output / 'manifest.json', dict(status='complete', direction=spec['direction'],
         configuration=FIXED_VARIANT, seeds=spec['seeds'], input_sha256=bindings,
-        mechanism='shape_no_layer_semantics_no_aux_rank_only_v3',
+        mechanism=('shape_source_learned_rank_landing_v1' if spec.get('learned_landing_checkpoint')
+                   else 'shape_no_layer_semantics_no_aux_rank_only_v3'),
         tokenizer_training_contract=TOKENIZER_TRAINING_CONTRACT,
         target_reference_read_by_generation=not direct,
         target_checkin_generation_use='aggregate_home_quota_only' if direct else 'training_home_marginal_and_eligible_user_set',

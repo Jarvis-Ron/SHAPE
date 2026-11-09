@@ -122,7 +122,8 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
                              verify_release=True, progress=lambda text: None,
                              source_city="nyc", target_city="ca", personal_scale=None,
                              rank_cache_rows=4096, sampling_seeds=SELECTION_SEEDS,
-                             target_home_quota=None, learned_landing_checkpoint=None):
+                             target_home_quota=None, learned_landing_checkpoint=None,
+                             learned_context_checkpoint=None):
     if target_home_quota is not None and (
             target_reference is not None or target_cohort is not None
             or personal_scale is None):
@@ -195,16 +196,43 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
             "generation_received_target_person_ids": False,
             "generation_received_target_checkins": False,
         }
-    progress("building exact 25-neighbor H contexts and Hamilton home quotas")
-    source_context, source_context_audit = selected_home_context(
-        source_raw, source_group, source_centers, np.searchsorted(source_ids, unique_source_homes))
-    target_context, target_context_audit = selected_home_context(
-        target_raw, target_group, target_centers, np.flatnonzero(probability > 0))
+    context_weights,context_values,context_audit=None,None,None
+    if learned_context_checkpoint is None:
+        progress("building exact 25-neighbor H contexts and Hamilton home quotas")
+        source_context, source_context_audit = selected_home_context(
+            source_raw, source_group, source_centers, np.searchsorted(source_ids, unique_source_homes))
+        target_context, target_context_audit = selected_home_context(
+            target_raw, target_group, target_centers, np.flatnonzero(probability > 0))
+    else:
+        if learned_landing_checkpoint is None or not rank_only:
+            raise ValueError("learned context requires learned rank landing")
+        from SHAPE.stage3.learned_context import load_context, context_inputs
+        from SHAPE.stage3.landing_head import apply_pooled_quantiles
+        from SHAPE.stage3.contracts import sha256_file
+        context_model, context_state=load_context(learned_context_checkpoint,
+            source_codes=source["reference_codes"],landing_checkpoint=source["checkpoint"],
+            source_grid=source["grid_csv"],learned_landing_checkpoint=learned_landing_checkpoint,source_city=source_city)
+        context_values=context_model.export_values()
+        context_weights=(context_values['residential_cost_weight'],context_values['poi_cost_weight'])
+        def make_context(raw,group,centers,required):
+            required=np.unique(required)
+            result=np.zeros((len(raw),14),np.float32)
+            with torch.no_grad():result[required]=context_model.context(context_inputs(raw,group,centers,required)).numpy()
+            return result,dict(contract='source_learned_soft_context_v2',values=context_values,computed_rows=len(required))
+        progress("building source-learned soft home contexts under unchanged quotas")
+        source_context,source_context_audit=make_context(source_raw,source_group,source_centers,np.searchsorted(source_ids,unique_source_homes))
+        target_context,target_context_audit=make_context(target_raw,target_group,target_centers,np.flatnonzero(probability>0))
+        attributes,_,_,_=load_canonical_grid_attributes(target_grid_csv)
+        state=dict(state,normalization=context_state['normalization'])
+        target_tensor=torch.as_tensor(apply_pooled_quantiles(attributes,state['normalization']),device=devices[0])
+        context_audit=dict(checkpoint_sha256=sha256_file(learned_context_checkpoint),values=context_values,
+            normalization=state['normalization'],best_epoch=context_state['best_epoch'],
+            home_best_epoch=context_state['home_best_epoch'],target_trajectory_training=False)
     assignments, home_audits = OrderedDict(), OrderedDict()
     for seed in sampling_seeds:
         homes, audit = context_quota_home_assignment(
             unique_source_homes, source_context, target_context, probability,
-            seed, source_ids, target_ids)
+            seed, source_ids, target_ids, context_weights=context_weights)
         assignments[seed] = _broadcast_user_values(source_cohort["users"], source_users, homes)
         home_audits[seed] = {**audit, "target_city": target_city,
                             "home_quota_source": target_city + "_day_split_train_only"}
@@ -216,9 +244,10 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         target_weights, target_weight_audit = static_poi_weights(target_grid_csv, target_ids)
         if not personal_scale.get("weighted_rank", True):
             source_weights, target_weights = None, None
-        source_rank = SpatialRankIndex(source_centers, source_weights)
-        target_rank = SpatialRankIndex(target_centers, target_weights,
-                                      cache_rows=rank_cache_rows)
+        from SHAPE.stage3.opportunity_rank import SpatialRankBinIndex
+        source_rank = SpatialRankIndex(source_centers, source_weights, cache_rows=8192)
+        target_rank = SpatialRankBinIndex(target_centers, target_weights,
+                                      cache_rows=rank_cache_rows,final_edge=RANK_PIECEWISE_EDGES[-2])
         source_piecewise = fit_train_rank_distance_semantics(
             source_reference, source_projected, source_centers, source_ids,
             weights=source_weights, rank_index=source_rank)
@@ -304,6 +333,8 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         "target_static": target_static, "target_raw": target_raw,
         "target_group": target_group, "target_l2": target_tensor.detach().cpu().numpy(),
         "normalization": state["normalization"], "lanes": lanes,
+        "initial_home_count": 1.0 if context_values is None else context_values['home_pseudocount'],
+        "initial_anchor_count": 1.0 if context_values is None else context_values['anchor_pseudocount'],
         "selected_beta": (closeout["selected_beta"] if learned_values is None
                           else learned_values["revisit_beta"]), "base_parameters": parameters,
         "source_context_homes": assignments, "source_familiar_capacity": capacity,
@@ -325,6 +356,7 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
             "rescale": {**rescale_audit, "target_city": target_city},
             "pareto_distance_cost": False,
             "learned_landing": learned_audit,
+            "learned_context": context_audit,
             "tokenizer_training_contract": TOKENIZER_TRAINING_CONTRACT,
             "opportunity_weights": weights_audit,
             "source_distance_semantics": source_piecewise,

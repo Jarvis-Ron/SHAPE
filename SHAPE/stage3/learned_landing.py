@@ -221,7 +221,7 @@ def fit(codes, landing_checkpoint, source_grid, output, *, device="cpu", seed=42
     group, _, _ = repair_group_index(raw, city,
         transport_provenance=load_v4_transport_provenance(source_grid, ids))
     weights, weight_audit = static_poi_weights(source_grid, ids)
-    ranks = SpatialRankIndex(centers, weights, cache_rows=len(ids))
+    ranks = SpatialRankIndex(centers, weights, cache_rows=8192)
     print("Fitting source-train rank and attraction statistics", flush=True)
     semantics = fit_train_rank_distance_semantics(reference, projected, centers, ids, rank_index=ranks, weights=weights)
     roles = fit_train_code_attraction_semantics(reference, projected, raw, ids, residential_grid_table=group)
@@ -233,9 +233,12 @@ def fit(codes, landing_checkpoint, source_grid, output, *, device="cpu", seed=42
     records = teacher_forced_records(reference, projected, ids)
     datasets = {split: _pack_records(rows, reference, device) for split, rows in records.items()}
     del records
-    # uint8 lookup is bounded to the source map; target generation remains lazy.
-    bins = np.stack([np.searchsorted(RANK_PIECEWISE_EDGES[1:-1], ranks.row(i), side="right")
-                     for i in range(len(ids))]).astype(np.uint8)
+    # The likelihood only requests observed origins. Keep every destination,
+    # and preserve exactly the full-matrix values without O(all_grid_count^2).
+    origins = np.unique(np.concatenate([d["origin"].cpu().numpy() for d in datasets.values()]))
+    bins = np.stack([np.searchsorted(RANK_PIECEWISE_EDGES[1:-1], ranks.row(int(i)), side="right")
+                     for i in origins]).astype(np.uint8)
+    origin_lookup = torch.as_tensor(origins, device=device)
     bin_counts = np.stack([np.bincount(row, minlength=16) for row in bins])
     fine_bins = torch.as_tensor(bins, device=device)
     log_counts = torch.as_tensor(np.log(bin_counts.clip(min=1)), dtype=torch.float32, device=device)
@@ -258,10 +261,11 @@ def fit(codes, landing_checkpoint, source_grid, output, *, device="cpu", seed=42
         for left in range(0, n, batch_size):
             idx = torch.as_tensor(order[left:left+batch_size], device=device)
             origin, code, gold = (data[k][idx].long() for k in ("origin", "code", "gold"))
-            fine = fine_bins[origin].long()
+            row = torch.searchsorted(origin_lookup, origin)
+            fine = fine_bins[row].long()
             with torch.set_grad_enabled(training):
                 attribute = scale * queries[data["event"][idx]] @ normalized_table.T
-                rank_density = log_probability[code].gather(1, fine) - log_counts[origin].gather(1, fine)
+                rank_density = log_probability[code].gather(1, fine) - log_counts[row].gather(1, fine)
                 memory = torch.zeros_like(attribute).scatter_add_(1, data["memory_positions"][idx].long(), data["memory_counts"][idx])
                 attraction = scorer.attraction_table(*attraction_args)[code]
                 logits = conditional_logits(attribute, rank_density, memory, attraction,

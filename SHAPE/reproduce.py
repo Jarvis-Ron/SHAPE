@@ -47,7 +47,7 @@ def read_spec(path):
         raise ValueError('The reference generation seeds must not change')
     for key in ('source_codes', 'landing_checkpoint', 'source_grid', 'target_grid',
                 'target_reference', 'home_quota', 'original_shell_plans', 'archived_predictions',
-                'learned_landing_checkpoint'):
+                'learned_landing_checkpoint', 'learned_context_checkpoint'):
         if spec.get(key):
             spec[key] = str((path.parent / spec[key]).resolve())
     return spec
@@ -55,6 +55,9 @@ def read_spec(path):
 
 def check_inputs(spec, *, generation=False):
     bindings = {}
+    if spec.get('learned_context_checkpoint') and (not spec.get('learned_landing_checkpoint') or
+            'learned_context_checkpoint' not in spec['expected_sha256']):
+        raise ValueError('Learned context requires a bound learned landing checkpoint and checksum')
     if spec.get('learned_landing_checkpoint') and 'learned_landing_checkpoint' not in spec['expected_sha256']:
         raise ValueError('Learned landing checkpoint requires an expected checksum')
     for key, expected in spec['expected_sha256'].items():
@@ -123,7 +126,8 @@ def generate(spec, output, device, lanes=1):
         source_city=spec['source_city'], target_city=spec['target_city'],
         personal_scale=dict(FIXED_VARIANT), sampling_seeds=tuple(spec['seeds']),
         target_home_quota=quota, progress=announce,
-        learned_landing_checkpoint=spec.get('learned_landing_checkpoint'))
+        learned_landing_checkpoint=spec.get('learned_landing_checkpoint'),
+        learned_context_checkpoint=spec.get('learned_context_checkpoint'))
     results = _run_e2_tasks(sampling_tasks(payloads, contract, spec['seeds']), payloads, runtime,
         stage_label='SHAPE', progress=lambda done, total, task, dev: announce(f'Completed seed {task["sampling_seed"]}: {done}/{total}'),
         **{k: landing[k] for k in ('landing_temperature', 'candidate_top_k',
@@ -140,7 +144,8 @@ def generate(spec, output, device, lanes=1):
     write_json(output / 'runtime.json', _jsonable(provenance))
     write_json(output / 'manifest.json', dict(status='complete', direction=spec['direction'],
         configuration=FIXED_VARIANT, seeds=spec['seeds'], input_sha256=bindings,
-        mechanism=('shape_source_learned_rank_landing_v1' if spec.get('learned_landing_checkpoint')
+        mechanism=('shape_source_learned_context_v2' if spec.get('learned_context_checkpoint') else
+                   'shape_source_learned_rank_landing_v1' if spec.get('learned_landing_checkpoint')
                    else 'shape_no_layer_semantics_no_aux_rank_only_v3'),
         tokenizer_training_contract=TOKENIZER_TRAINING_CONTRACT,
         target_reference_read_by_generation=not direct,

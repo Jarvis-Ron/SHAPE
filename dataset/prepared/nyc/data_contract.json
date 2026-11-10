@@ -1,0 +1,26 @@
+{
+  "active_set": null,
+  "city": "nyc",
+  "event_dim": 136,
+  "float_feature_grid_id_column": 123,
+  "grid_csv_sha256": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
+  "grid_id_contract": "raw_nominal_int64_in_grid_ids_int64.npz",
+  "grid_spec_schema": "civic-fixed-grid-v4",
+  "latent_path": "nyc_latent.npz",
+  "latent_rows": 7376,
+  "latent_sha256": "045dcf6de794d549b5c673752a9ab7d8e73d6989b829615334b840140b70b454",
+  "local_time_contract": "dataset_utc_offset_minutes_v1",
+  "mapping_counts": {
+    "emitted_static_events": 224208,
+    "in_bbox_missing_static": 3219,
+    "input_events": 227428,
+    "kept_events": 227427,
+    "oob_dropped": 1
+  },
+  "missing_latent_flag_column": 135,
+  "schema": "civic_event_driven_sparse_grid_v2",
+  "seed": 42,
+  "spatial_vocabulary_size": 64,
+  "static_grid_rows": 7376,
+  "timezone": null
+}

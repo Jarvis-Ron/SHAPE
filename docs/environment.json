@@ -1,15 +1,22 @@
 {
-  "python": "3.14.7",
-  "platform": "macOS ARM64 CPU",
-  "packages": {
-    "torch": "2.11.0",
-    "numpy": "2.5.2",
-    "pandas": "3.0.5",
-    "scipy": "1.18.1",
-    "scikit-learn": "1.9.0",
-    "matplotlib": "3.11.1",
-    "pytest": "9.1.1",
-    "tqdm": "4.67.3"
-  },
-  "generation_threads": 1
+  "python": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
+  "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.39",
+  "torch": "2.11.0+cu126",
+  "numpy": "2.4.4",
+  "scipy": "1.18.0",
+  "cuda": "12.6",
+  "gpus": [
+    "NVIDIA RTX 6000 Ada Generation",
+    "NVIDIA RTX 6000 Ada Generation",
+    "NVIDIA RTX 6000 Ada Generation"
+  ],
+  "generation_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "training_seed": 42,
+  "scope": "Original fitted-model training/generation environment"
 }

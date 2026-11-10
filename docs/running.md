@@ -1,35 +1,40 @@
 # Running SHAPE
 
-The supported four-direction entry point is `run_full_pipeline.py` (or the shell wrapper).
+Install from the repository root with `python -m pip install -e '.[test]'`.
+The checked-in configurations resolve paths relative to their own location.
+Keep `dataset/` and `checkpoints/` alongside `SHAPE/` when cloning this release.
 
-| Mode | Work performed | Requires training |
-|---|---|---|
-| `verify` | Verify fixed input hashes and recompute summaries of archived metric draws | No |
-| `score` | Recompute metrics from the original generated trajectories | No |
-| `reproduce` | Generate from current-contract Stage 3 inputs, then score; bundled historical inputs are rejected | Requires new Stage 2/landing artifacts |
-| `train` | Train static encoder, prepare source events, train tokenizer and landing head, generate, score | Yes |
+`python run_full_pipeline.py --help` describes four modes:
 
-Run `python run_full_pipeline.py --help`. Four-direction configs resolve paths relative to their containing directory. Their SHA-256 bindings protect against accidentally mixing inputs. Fresh-training outputs receive new bindings. The full runner invokes stages synchronously and stops on failure; each training stage has its own log. Use a fresh output directory for each execution.
+- `verify`: check checkpoint/data bindings and the evaluation populations.
+- `generate`: use the fitted model to generate five seeds, with no target
+  reference or evaluation-plan reads.
+- `reproduce`: generate, then evaluate using equal complete-user counts.
+- `train`: reuse prepared Stage 1 events, retrain Stage 2 and all three Stage 3
+  components, then generate and evaluate. Add `--fresh-grid` to refit Stage 1.
 
-Use `--mode train` for the current model. The four bundled configs bind older
-supervised-tokenizer archives, so their `--mode reproduce` path intentionally
-fails before generation. Reuse a new run with
-`python -m SHAPE.reproduce generate --spec <fit/transfer.json> --device cpu --output <new-directory>`.
-Changing metadata on old weights is not a substitute for retraining: export
-checks the tokenizer training contract and Stage 3 binds the new codes to the
-retrained landing head. Removed semantic supervision CLI/config options raise
-an error, including a zero semantic coefficient; there is no enable switch.
-The old `cost` configuration key and the sampler's `distance_cost_gamma` and
-`distance_cost_xmin_km` arguments are unsupported. Radius arguments, the basic
-continuity kernel and other physical-distance sampler paths remain available.
+Select one of `nyc_to_ca`, `nyc_to_paris`, `ca_to_nyc`, `ca_to_paris`, or `all`.
+`--dry-run` shows the command plan without creating a run. `--lanes` controls
+generation concurrency on the chosen device; it does not change model settings.
+Training runs synchronously and stops on the first failed command.
 
-The fixed runner passes `personal_scale=FIXED_VARIANT` explicitly and keeps
-full-vocabulary opportunity-rank generation without target-distance calibration.
-The basic sampler's radius routine instead adds nearby grids to attribute top-k
-and visit-memory candidates. It is not a global trip-distance cap. The separate
-legacy low-level runtime with `personal_scale=None` retains target-training
-distance quantile calibration; it is not the fixed runner's generation protocol.
+For separate generation and evaluation:
 
-For CA-source training, `--prepared-events` skips static training and event preparation, using the bundled historical event features instead. This is only available for one CA-source direction at a time. Fresh static preparation uses the complete static vocabulary and does not reconstruct the older source-active embeddings. The raw-to-training path and frozen-input replay therefore answer different reproduction questions.
+```bash
+python -m SHAPE run generate --spec configs/nyc_to_paris.json \
+  --output results/paris-generation --device cuda:0
+python -m SHAPE run evaluate --spec configs/nyc_to_paris.json \
+  --predictions results/paris-generation/predictions.npz \
+  --output results/paris-evaluation
+```
 
-The lower-level commands are `python -m SHAPE train-grid`, `extract-grid`, `prepare-events`, `train-tokenizer`, `encode-source`, and `train-landing`. Append `--help` for stage-specific options. Three-seed NYC-to-CA wrappers use the same current training contract; the root runner covers all four directions. Historical scoring and verification do not load a tokenizer and remain available.
+The individual stage commands are listed by `python -m SHAPE --help`.
+`train-landing-weights` fits the source landing coefficients; `train-context`
+fits the additional Home context, initial memory-count and quantile parameters.
+Both must be fitted and bound in the configuration. The public runner has no
+fallback to the older fixed-coefficient model.
+
+Retraining may produce different parameters across platforms. Checkpoints are
+selected on source validation data, never on target test metrics. The released
+user-selection plans are valid only for the released source/target cohorts;
+evaluation rejects altered populations rather than silently misaligning users.

@@ -1,7 +1,9 @@
-This optional V2 extends the source-trained landing scorer at `75cd8e0` with
-seven additional scalar parameters. Existing Stage 1/2 checkpoints, the landing
-network and the V1 scorer are frozen. V1 remains available by omitting
-`learned_context_checkpoint` from the generation spec.
+# Source-learned Home context
+
+The final model includes seven additional scalar parameters alongside the
+source-trained landing scorer. Stage 1/2 checkpoints, the neural landing head
+and the first fitted landing-weight component remain frozen during this fit.
+Both learned checkpoints are required by the public release runner.
 
 The new parameters are the residential density/diversity mix used in home
 contexts, continuous effective neighborhood size, relative residential/POI
@@ -45,15 +47,14 @@ the validation rule selects its initial state; report such outcomes honestly.
 ```bash
 python -m SHAPE.stage3.learned_context --codes SOURCE_CODES \
   --landing-checkpoint LANDING --source-grid SOURCE_MAP \
-  --learned-landing-checkpoint V1_WEIGHTS \
+  --learned-landing-checkpoint LANDING_WEIGHTS \
   --pooled-grids NYC_MAP CA_MAP PARIS_MAP --output FIT_DIR --device cuda:0
 ```
 
-Add `learned_context_checkpoint` and its expected SHA256 to the existing V1
-generation spec. Checkpoint loading binds source codes, map, neural head and
-V1 weights; provenance records learned values and normalization bounds.
+Add `learned_context_checkpoint` and its expected SHA256 to the generation spec. Checkpoint loading binds source codes, map, neural head and
+landing weights; provenance records learned values and normalization bounds.
 
-The V1 fit implementation also materializes rank-bin rows only for observed
+The landing fit implementation also materializes rank-bin rows only for observed
 source origins. It still includes every destination and preserves the exact
 full-matrix probabilities. This avoids allocating a full CA-by-CA matrix and
 does not change the statistical model.

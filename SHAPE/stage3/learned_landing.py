@@ -314,6 +314,8 @@ def fit(codes, landing_checkpoint, source_grid, output, *, device="cpu", seed=42
                  selection_temperature=.75, landing_temperature=1.,
                  rank_semantics_sha256=semantics["table_sha256"],
                  attraction_semantics_sha256=roles["table_sha256"])
+    from SHAPE.stage3.prototype_semantics import attraction_effective_sha256
+    state['attraction_effective_sha256'] = attraction_effective_sha256(roles)
     torch.save(state, output / "learned_landing.pth")
     report = dict(schema=SCHEMA, source_city=city, status="complete", bindings=bindings,
         training_seed=seed, best_epoch=best_epoch, epochs_run=len(history)-1,

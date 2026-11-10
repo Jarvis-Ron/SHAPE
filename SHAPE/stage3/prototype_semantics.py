@@ -159,6 +159,22 @@ def fit_train_piecewise_distance_semantics(
     }
 
 
+def attraction_effective_sha256(semantics):
+    """Bind exact runtime arrays instead of unused float64 intermediates.
+
+    BLAS implementations can differ in the last bits of a float64 matrix
+    product while producing identical float32 tables used by the model.
+    No rounding or tolerance is introduced for the effective arrays.
+    """
+    digest = hashlib.sha256()
+    for key in sorted(k for k, v in semantics.items() if isinstance(v, np.ndarray)):
+        array = np.ascontiguousarray(semantics[key])
+        digest.update(json.dumps([key, array.dtype.str, list(array.shape)]).encode())
+        digest.update(array.tobytes())
+    digest.update(json.dumps(semantics['role'], separators=(',', ':')).encode())
+    return digest.hexdigest()
+
+
 def apply_code_distance_mixture(codes, semantics, offsets=None):
     """Map event layer-0 codes to frozen four-bin and piecewise densities."""
     codes = np.asarray(codes, dtype=np.int64)

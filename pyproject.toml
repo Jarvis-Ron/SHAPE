@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shape-code"
-version = "1.0.0"
+version = "2.0.0"
 description = "SHAPE: residual activity prototypes and opportunity-rank trajectory transfer"
 requires-python = ">=3.10"
 dependencies = [

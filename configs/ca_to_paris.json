@@ -1,12 +1,33 @@
 {
-  "direction": "ca_to_paris",
-  "source_city": "ca",
-  "target_city": "paris",
   "configuration": {
-    "weighted_rank": true,
+    "kappa": 0,
     "lambda": 0,
-    "kappa": 0
+    "weighted_rank": true
   },
+  "direction": "ca_to_paris",
+  "evaluation_metadata": "../dataset/evaluation/ca_to_paris.json",
+  "expected_sha256": {
+    "evaluation_metadata": "a18f431849ca6ff0259e7a6039afaccf78124d78f9fd402153a1a855044f128a",
+    "grid_checkpoint": "95a6263aaf489092f3528ced0e8085ed2e3739c36e12dd0592b36b8bf98b3ef6",
+    "home_quota": "b679b411dfaf15b80bf6683795c1afa4430bf954d1c4a4f91aa791fd946e971d",
+    "landing_checkpoint": "e2710fae69c9a632099e75b591cb0fae6895dbc87c79fe987653f68bcb0a23b5",
+    "learned_context_checkpoint": "c3dc2d9e72491b38282d885441efa45f35899bd0a1a6dc9cb6897ff7f40d2f2e",
+    "learned_landing_checkpoint": "aef0d39743262fca92a6c28d5e3c6bd5a9eac39f83c3be9074122132c9e2e06b",
+    "source_codes": "786e23d8e81dc46ffe51787acec1df59181ceb854d41c81f932b4bb2301ab191",
+    "source_grid": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d",
+    "target_grid": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1",
+    "target_reference": "1f01eccbee1540da2f560fc96eb6b21e2a3a7ba646c2fa692832dd3b5831f591",
+    "tokenizer_checkpoint": "5ed3efd46a852f1cee70c98a7a816d9ed2e743d646fd7ba049a4b3922f5cef83",
+    "user_selection": "3f24b62a86a79fff655c1e9e17bed82590b4401f44e198798b420c67eb1bdaef"
+  },
+  "grid_checkpoint": "../checkpoints/ca_to_paris/grid.pth",
+  "home_quota": "../dataset/home_quotas/ca_to_paris.json",
+  "landing_checkpoint": "../checkpoints/ca_to_paris/landing.pth",
+  "learned_context_checkpoint": "../checkpoints/ca_to_paris/learned_context.pth",
+  "learned_landing_checkpoint": "../checkpoints/ca_to_paris/learned_landing.pth",
+  "mechanism": "shape_source_learned_context_v2",
+  "model_source_commit": "cc4faf5346ec30138b727f9dca925beb5f3e2849",
+  "protocol": "equal_complete_users_v1",
   "seeds": [
     42,
     43,
@@ -14,22 +35,14 @@
     45,
     46
   ],
-  "protocol": "per_seed_shell",
-  "source_codes": "../inputs/ca_to_paris/source_codes.npz",
-  "landing_checkpoint": "../inputs/ca_to_paris/landing.pth",
-  "target_reference": "../inputs/ca_to_paris/target_reference.npz",
+  "source_city": "ca",
+  "source_codes": "../dataset/prepared/ca_to_paris/source_codes.npz",
+  "source_events": "../dataset/prepared/ca_to_paris",
   "source_grid": "../dataset/CA_grid_merged_features.csv",
+  "target_city": "paris",
   "target_grid": "../dataset/PARIS_grid_merged_features.csv",
-  "expected_sha256": {
-    "source_codes": "76086b9523af21adbce2eb662f9ba13a2d1f40dc3ddb4666e63f8eec20d6526f",
-    "landing_checkpoint": "050edbf2c01a931701b9fb96c5d32f9f03a5b07cccaa22857422abc9d94eb4b0",
-    "target_reference": "1f01eccbee1540da2f560fc96eb6b21e2a3a7ba646c2fa692832dd3b5831f591",
-    "source_grid": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d",
-    "target_grid": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1"
-  },
-  "archived_predictions": "../inputs/ca_to_paris/predictions.npz",
-  "original_shell_plans": "../inputs/ca_to_paris/shell_plans.npz",
-  "shell_length_policy": "strict",
-  "mechanism": "shape_no_layer_semantics_no_aux_rank_only_v3",
-  "bundled_artifacts": "historical_semantic_supervision_and_distance_cost"
+  "target_reference": "../dataset/reference/paris.npz",
+  "tokenizer_checkpoint": "../checkpoints/ca_to_paris/tokenizer.pth",
+  "tokenizer_training_contract": "residual_fsq_no_layer_semantics_no_aux_v3",
+  "user_selection": "../dataset/evaluation/ca_to_paris_users.npz"
 }

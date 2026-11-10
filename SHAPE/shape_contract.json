@@ -1,5 +1,5 @@
 {
-  "schema": "shape_code_v2",
+  "schema": "shape_learned_context_release_v1",
   "model": "SHAPE",
   "variant": {
     "weighted_rank": true,
@@ -27,21 +27,18 @@
     "landing_seeds": [
       42,
       43,
-      44
-    ],
-    "shell_repeats": 200,
-    "shell_seed": 42031,
-    "shell_contract": "predicted_day_bootstrap_into_target_person_day_shell_v1",
-    "same_plan_across_landing_seeds": true,
-    "exact_target_event_count": true,
-    "target_city_information_used_by_shell": "target_day_lengths_user_grouping_and_event_times_for_evaluation_only",
-    "target_grid_or_outcome_used_by_shell": false
+      44,
+      45,
+      46
+    ]
   },
   "evaluation": {
+    "protocol": "equal_complete_users_v1",
     "primary_stratum": "events_ge_2",
+    "repeats": 200,
     "spatial_granularity": "od_100x100",
-    "aggregation": "seed_population_mean_then_metric_then_shell_mean",
-    "uncertainty": "sample_SD_over_200_matched_shells",
+    "aggregation": "metric_per_equal_user_draw_then_mean_per_seed",
+    "uncertainty": "sample_SD_across_five_generation_seed_means",
     "std_ddof": 1
   },
   "information": {
@@ -50,8 +47,15 @@
     "target_map": "complete_static_grid_vocabulary_and_raw_POI_counts",
     "target_checkins_for_generation": "population_home_quota_only",
     "target_distance_calibration": false,
-    "target_test": "unchanged_matched_person_day_evaluation_shell_only",
+    "target_test": "equal_complete_user_evaluation_only",
     "pareto_distance_cost": false,
     "tokenizer_training_contract": "residual_fsq_no_layer_semantics_no_aux_v3"
+  },
+  "learned_overrides": {
+    "required": [
+      "learned_landing_checkpoint",
+      "learned_context_checkpoint"
+    ],
+    "note": "frozen_landing preserves head/interface initialization; fitted scoring, home context, initial counts and quantile bounds override their initial values"
   }
 }

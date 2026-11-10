@@ -303,11 +303,11 @@ def fit(codes,landing_checkpoint,source_grid,learned_landing_checkpoint,pooled_g
         trainable_parameter_count=7,history=history))
 
 
-def main():
+def main(argv=None):
     p=argparse.ArgumentParser();p.add_argument('--codes',required=True);p.add_argument('--landing-checkpoint',required=True)
     p.add_argument('--source-grid',required=True);p.add_argument('--learned-landing-checkpoint',required=True)
     p.add_argument('--pooled-grids',nargs='+',required=True);p.add_argument('--output',required=True);p.add_argument('--device',default='cpu')
-    fit(**vars(p.parse_args()))
+    fit(**vars(p.parse_args(argv)))
 
 
 if __name__=='__main__':main()

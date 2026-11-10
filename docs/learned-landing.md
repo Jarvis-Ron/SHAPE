@@ -1,6 +1,6 @@
 # Source-learned landing parameters
 
-This optional Stage 3 variant learns 68 parameters on source-city trajectories:
+The final Stage 3 model first learns 68 parameters on source-city trajectories:
 three positive scoring strengths (revisit, POI attraction and opportunity rank),
 one density/diversity mixing proportion, and 64 code-specific residential gates.
 Stage 1, Stage 2, the pretrained landing head, its logit scale and both sampling
@@ -49,12 +49,10 @@ the initialization as epoch zero. Training writes `history.json`, `report.json`
 and `learned_landing.pth`. These optimizer/budget choices remain fixed settings;
 making scoring parameters learnable does not eliminate all hyperparameters.
 
-To generate, add `learned_landing_checkpoint` to the normal transfer spec and
-add its SHA-256 under `expected_sha256` with the same key. `python -m SHAPE.reproduce
-generate --help` documents generation arguments. Omitting this optional field
-retains the original fixed scoring behavior. A learned checkpoint is rejected
-when source codes, source static table, frozen head or source statistics differ.
-Generation manifests record the variant and learned checkpoint hash.
+The released configurations bind this checkpoint together with the additional
+`learned_context_checkpoint`. Both are required. A checkpoint is rejected when
+its source codes, source static table, frozen head or source statistics differ.
+Generation manifests record the fitted parameters and checkpoint hashes.
 
 Target static map attributes determine the available opportunities and
 attraction table. Target home quotas remain the existing protocol input; the

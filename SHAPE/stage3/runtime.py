@@ -282,8 +282,13 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         learned, learned_state = load_learned_landing(learned_landing_checkpoint,
             source_codes=source["reference_codes"], landing_checkpoint=source["checkpoint"],
             source_grid=source["grid_csv"], source_city=source_city)
+        from SHAPE.stage3.prototype_semantics import attraction_effective_sha256
+        attraction_matches = (
+            learned_state["attraction_semantics_sha256"] == source_roles["table_sha256"]
+            or learned_state.get("attraction_effective_sha256") == attraction_effective_sha256(source_roles)
+        )
         if learned_state["rank_semantics_sha256"] != source_piecewise["table_sha256"] \
-                or learned_state["attraction_semantics_sha256"] != source_roles["table_sha256"]:
+                or not attraction_matches:
             raise ValueError("learned landing source statistics changed")
         with torch.no_grad():
             attraction = learned.attraction_table(*attraction_inputs(

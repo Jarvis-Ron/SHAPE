@@ -1,12 +1,10 @@
-"""Execute the four fixed SHAPE experiments with their recorded evaluation units."""
+"""Generate the released learned-context SHAPE model and evaluate complete users."""
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 import hashlib
 import json
-import multiprocessing as mp
 from pathlib import Path
 
 import numpy as np
@@ -20,21 +18,17 @@ from SHAPE.stage3.contracts import require_current_tokenizer_training, sha256_fi
 from SHAPE.stage3.grid_projection import _project_nominal_ids_to_vocabulary
 from SHAPE.stage3.group_index import load_v4_transport_provenance, repair_group_index
 from SHAPE.stage3.landing_head import load_canonical_grid_attributes
-from SHAPE.stage3.matched_shell import _resampled_payload
 from SHAPE.stage3.metrics import TEN_METRICS, aggregate_subset, primary_subset, score_prediction_group
 from SHAPE.stage3.rank_semantics import _jsonable
 from SHAPE.stage3.reference import reference_cohort, reference_payload
 from SHAPE.stage3.run import FIVE, announce, train_home_reference
 from SHAPE.stage3.runtime import build_source_payloads, prepare_transfer_runtime
-from SHAPE.stage3.shell_plan import shell_plan, write_csv
-from SHAPE.stage3.shell_support import subset_target_test_days
 from SHAPE.stage3.source_cohort import load_g0_cohort
 from SHAPE.stage3.static_features import _load_raw_table
 from SHAPE.stage3.tasks import FIXED_VARIANT, load_contract, make_x1_hra_tasks
 
 ROOT = Path(__file__).resolve().parents[1]
-STATE = None
-PROTOCOLS = {'pooled_three_seed_shell', 'per_seed_shell', 'direct_source_population'}
+PROTOCOLS = {'equal_complete_users_v1'}
 
 
 def read_spec(path):
@@ -42,26 +36,34 @@ def read_spec(path):
     spec = json.loads(path.read_text())
     if spec['configuration'] != FIXED_VARIANT or spec['protocol'] not in PROTOCOLS:
         raise ValueError('Unsupported mechanism or evaluation protocol')
-    expected = [42, 43, 44] if spec['protocol'] == 'pooled_three_seed_shell' else [42, 43, 44, 45, 46]
+    expected = [42, 43, 44, 45, 46]
     if spec['seeds'] != expected:
         raise ValueError('The reference generation seeds must not change')
     for key in ('source_codes', 'landing_checkpoint', 'source_grid', 'target_grid',
-                'target_reference', 'home_quota', 'original_shell_plans', 'archived_predictions',
+                'target_reference', 'home_quota', 'source_events', 'tokenizer_checkpoint',
+                'grid_checkpoint', 'user_selection', 'evaluation_metadata',
                 'learned_landing_checkpoint', 'learned_context_checkpoint'):
         if spec.get(key):
             spec[key] = str((path.parent / spec[key]).resolve())
+    for key in ('learned_landing_checkpoint', 'learned_context_checkpoint', 'home_quota',
+                'user_selection', 'evaluation_metadata'):
+        if not spec.get(key) or key not in spec['expected_sha256']:
+            raise ValueError('Latest SHAPE requires a bound input with an expected checksum: ' + key)
     return spec
 
 
 def check_inputs(spec, *, generation=False):
     bindings = {}
+    for key in ('learned_landing_checkpoint', 'learned_context_checkpoint', 'home_quota'):
+        if not spec.get(key) or key not in spec['expected_sha256']:
+            raise ValueError('Latest SHAPE requires a bound input with an expected checksum: ' + key)
     if spec.get('learned_context_checkpoint') and (not spec.get('learned_landing_checkpoint') or
             'learned_context_checkpoint' not in spec['expected_sha256']):
         raise ValueError('Learned context requires a bound learned landing checkpoint and checksum')
     if spec.get('learned_landing_checkpoint') and 'learned_landing_checkpoint' not in spec['expected_sha256']:
         raise ValueError('Learned landing checkpoint requires an expected checksum')
     for key, expected in spec['expected_sha256'].items():
-        if generation and spec['protocol'] == 'direct_source_population' and key == 'target_reference':
+        if generation and key in ('target_reference', 'user_selection', 'evaluation_metadata'):
             continue
         actual = sha256_file(spec[key])
         if actual != expected:
@@ -110,16 +112,9 @@ def generate(spec, output, device, lanes=1):
                   arms={'D1A1_raw': {'parameters': {k: landing[k] for k in
                         ('selection_mode', 'selection_temperature', 'distance_mode', 'distance_tau',
                          'attraction_mode', 'attraction_strength')}}})
-    direct = spec['protocol'] == 'direct_source_population'
-    if direct:
-        # The generator receives only an aggregate histogram for the target.
-        homes, target_users = None, None
-        quota = json.loads(Path(spec['home_quota']).read_text())
-    else:
-        reference, target_cohort, _, _ = load_reference(spec)
-        homes = train_home_reference(reference)
-        target_users = {'users': target_cohort['users']}
-        quota = None
+    # Only the explicit aggregate home histogram enters target conditioning.
+    homes, target_users = None, None
+    quota = json.loads(Path(spec['home_quota']).read_text())
     runtime = prepare_transfer_runtime(source,
         dict(selected_beta=landing['revisit_beta'], binding={'parameters_from': 'fixed_SHAPE'}),
         cohort, homes, target_users, spec['target_grid'], [device] * lanes,
@@ -144,12 +139,10 @@ def generate(spec, output, device, lanes=1):
     write_json(output / 'runtime.json', _jsonable(provenance))
     write_json(output / 'manifest.json', dict(status='complete', direction=spec['direction'],
         configuration=FIXED_VARIANT, seeds=spec['seeds'], input_sha256=bindings,
-        mechanism=('shape_source_learned_context_v2' if spec.get('learned_context_checkpoint') else
-                   'shape_source_learned_rank_landing_v1' if spec.get('learned_landing_checkpoint')
-                   else 'shape_no_layer_semantics_no_aux_rank_only_v3'),
+        mechanism='shape_source_learned_context_v2',
         tokenizer_training_contract=TOKENIZER_TRAINING_CONTRACT,
-        target_reference_read_by_generation=not direct,
-        target_checkin_generation_use='aggregate_home_quota_only' if direct else 'training_home_marginal_and_eligible_user_set',
+        target_reference_read_by_generation=False,
+        target_checkin_generation_use='aggregate_home_quota_only',
         prediction_sha256=sha256_file(output / 'predictions.npz')))
     return output / 'predictions.npz'
 
@@ -173,127 +166,31 @@ def direct_scores(aggregate, truth, group):
     return {k: result[k] for k in FIVE}
 
 
-def score_init(source, target, plans, runtime, predictions, protocol):
-    global STATE
-    torch.set_num_threads(1)
-    truth = aggregate_subset(primary_subset(target, target['values']), runtime)
-    STATE = source, target, plans, runtime, predictions, protocol, truth
 
-
-def score_repeat(repeat):
-    source, target, plans, runtime, predictions, protocol, truth = STATE
-    indices, aligned = _resampled_payload(source, target, plans[repeat])
-    if protocol == 'pooled_three_seed_shell':
-        point, _ = score_prediction_group([predictions[s][indices] for s in sorted(predictions)], aligned, runtime, truth)
-        return [dict(repeat=repeat, metric=m, value=point[m]) for m in TEN_METRICS]
-    rows = []
-    for seed in sorted(predictions):
-        point, _ = score_prediction_group([predictions[seed][indices]], aligned, runtime, truth)
-        rows.extend(dict(seed=seed, repeat=repeat, metric=m, value=point[m]) for m in TEN_METRICS)
-    return rows
-
-
-def summarize(rows, protocol, seeds):
-    summaries, per_seed = [], []
-    metrics = list(FIVE) if protocol == 'direct_source_population' else TEN_METRICS
-    for metric in metrics:
-        if protocol == 'pooled_three_seed_shell':
-            values = [r['value'] for r in rows if r['metric'] == metric]
-            if len(values) != 200:
-                raise ValueError('Expected exactly 200 pooled shell scores')
-            axis = 'shell_resamples_of_pooled_seed_populations'
-        else:
-            values = []
-            for seed in seeds:
-                draws = [r['value'] for r in rows if r['metric'] == metric and r['seed'] == seed]
-                expected = 1 if protocol == 'direct_source_population' else 200
-                if len(draws) != expected:
-                    raise ValueError('Incomplete seed scores')
-                value = float(np.mean(draws))
-                values.append(value)
-                per_seed.append(dict(seed=seed, metric=metric, mean=value, sample_count=expected))
-            axis = 'generation_seed_scores' if protocol == 'direct_source_population' else 'generation_seed_shell_means'
-        if not np.isfinite(values).all():
-            raise ValueError('Nonfinite scores')
-        summaries.append(dict(metric=metric, mean=float(np.mean(values)), std=float(np.std(values, ddof=1)),
-                              sample_count=len(values), sample_axis=axis, std_ddof=1))
-    return summaries, per_seed
-
-
-def evaluate(spec, prediction_file, output, workers=4):
-    output = Path(output)
-    output.mkdir(parents=True, exist_ok=False)
-    check_inputs(spec)
-    _, payloads = load_source(spec)
-    source = payloads['source_test_real']
-    _, _, target, static = load_reference(spec)
-    runtime = scoring_runtime(spec, static)
-    with np.load(prediction_file, allow_pickle=False) as archive:
-        if set(archive.files) != {f'seed_{s}' for s in spec['seeds']}:
-            raise ValueError('Prediction archive seed set differs from the experiment')
-        predictions = {s: archive[f'seed_{s}'] for s in spec['seeds']}
-    for prediction in predictions.values():
-        if len(prediction) != sum(source['lengths']) or not np.isin(prediction, runtime['target_grid_ids']).all():
-            raise ValueError('Prediction shape or target grid vocabulary mismatch')
-    rows = []
-    if spec['protocol'] == 'direct_source_population':
-        truth = aggregate_subset(primary_subset(target, target['values']), runtime)
-        for seed, prediction in predictions.items():
-            aggregate = aggregate_subset(primary_subset(source, prediction), runtime)
-            point = direct_scores(aggregate, truth, runtime['target_group'])
-            rows.extend(dict(seed=seed, metric=m, value=point[m]) for m in FIVE)
-        plan_hash = None
-    else:
-        plans, _, retained = shell_plan(source, target, 200, output, length_policy=spec['shell_length_policy'])
-        target = subset_target_test_days(target, retained)
-        if spec.get('original_shell_plans'):
-            with np.load(spec['original_shell_plans'], allow_pickle=False) as archive:
-                if not np.array_equal(plans, archive['plans']):
-                    raise ValueError('Evaluation shell plans differ from the recorded experiment')
-        plan_hash = hashlib.sha256(plans.tobytes()).hexdigest()
-        with ProcessPoolExecutor(workers, mp_context=mp.get_context('spawn'), initializer=score_init,
-                initargs=(source, target, plans, runtime, predictions, spec['protocol'])) as pool:
-            for batch in pool.map(score_repeat, range(200), chunksize=4):
-                rows.extend(batch)
-    summaries, per_seed = summarize(rows, spec['protocol'], spec['seeds'])
-    write_csv(output / 'metric_draws.csv', rows)
-    write_csv(output / 'metrics.csv', summaries)
-    if per_seed:
-        write_csv(output / 'per_seed_metrics.csv', per_seed)
-    lookup = {r['metric']: r for r in summaries}
-    five = {'direction': spec['direction'], **{label: f'{lookup[k]["mean"]:.4f} ± {lookup[k]["std"]:.4f}' for k, label in FIVE.items()}}
-    write_csv(output / 'five_metrics.csv', [five])
-    result = dict(direction=spec['direction'], protocol=spec['protocol'], seeds=spec['seeds'],
-                  means={k: lookup[k]['mean'] for k in FIVE}, stds={k: lookup[k]['std'] for k in FIVE},
-                  prediction_sha256=sha256_file(prediction_file), shell_plan_array_sha256=plan_hash,
-                  target_days=len(target['lengths']), source_days=len(source['lengths']), status='complete')
-    archived = spec.get('archived_predictions')
-    result['prediction_origin'] = (
-        'historical_semantic_supervision_and_distance_cost'
-        if archived and result['prediction_sha256'] == sha256_file(archived)
-        else 'supplied_predictions'
-    )
-    write_json(output / 'result.json', result)
-    print(json.dumps(five), flush=True)
-    return result
+def evaluate(spec, prediction_file, output, workers=1):
+    from SHAPE.evaluation.matched_users import evaluate as score
+    return score(spec, prediction_file, output)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['generate', 'evaluate'])
+    parser.add_argument('action', choices=('generate', 'evaluate'))
     parser.add_argument('--spec', required=True)
     parser.add_argument('--output', required=True)
-    parser.add_argument('--predictions')
     parser.add_argument('--device', default='cpu')
     parser.add_argument('--lanes', type=int, default=1)
-    parser.add_argument('--workers', type=int, default=4)
+    parser.add_argument('--predictions')
     args = parser.parse_args(argv)
-    torch.set_num_threads(2)
+    if args.lanes < 1:
+        parser.error('--lanes must be positive')
+    torch.set_num_threads(1)
     spec = read_spec(args.spec)
     if args.action == 'generate':
         generate(spec, args.output, args.device, args.lanes)
     else:
-        evaluate(spec, args.predictions or spec['archived_predictions'], args.output, args.workers)
+        if not args.predictions:
+            parser.error('evaluate requires --predictions from a completed generation')
+        evaluate(spec, args.predictions, args.output)
 
 
 if __name__ == '__main__':

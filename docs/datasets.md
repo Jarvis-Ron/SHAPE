@@ -1,23 +1,32 @@
-# Included data
+# Included datasets
 
-This release includes the actual processed sequences needed by the four experiments, static map features, and raw-POI/transport provenance. Generation and evaluation do not require the entire worldwide Foursquare dataset.
+| Path | Role |
+|---|---|
+| `*_grid_merged_features.csv`, `*_grid_provenance.csv` | Complete static map vocabulary and POI/transport features for NYC, CA and Paris |
+| `grid_spec.json`, `feature_spec.json`, producer receipts | Grid geometry and static preprocessing definitions |
+| `checkin_NY_TY2014/` | Original NYC check-in file and provider readme |
+| `Gowalla-CA/` | Supplied California check-in partitions |
+| `prepared/nyc/`, `prepared/ca_to_nyc/`, `prepared/ca_to_paris/` | Source events, int64 grid IDs, user splits and codes from the released no-auxiliary-loss tokenizer |
+| `reference/{nyc,ca,paris}.npz` | Processed calendar-aware reference events used by evaluation |
+| `home_quotas/*.json` | Target training-home histograms supplied as inference conditions |
+| `evaluation/*_users.npz`, `evaluation/*.json` | 200 complete-user selection plans and population/hash bindings |
 
-| Direction | Source users / check-ins / days | Target reference users / check-ins / days |
-|---|---:|---:|
-| NYC → CA | 1,083 / 227,427 / 93,862 | 4,314 / 241,596 / 80,532 |
-| NYC → Paris | 1,083 / 227,427 / 93,862 | 3,267 / 85,792 / 52,505 |
-| CA → NYC | 1,070 / 172,573 / 53,816 | 1,083 / 227,427 / 93,862 |
-| CA → Paris | 1,070 / 172,573 / 53,816 | 3,267 / 85,792 / 52,505 |
+Paris is distributed here as processed reference data, not as the full original
+global Foursquare raw archive. Its provider readme remains in `dataset/`.
+Source data are pseudonymous check-in records; consult the original providers'
+terms and attribution in [THIRD_PARTY_DATA.md](../THIRD_PARTY_DATA.md).
 
-These counts include all splits before evaluation eligibility and the two-event-day restriction. CA's historical source cohort is smaller than its target cohort. The NYC source archives contain the same check-ins but different upstream encodings; they are not interchangeable. Native generation eligibility leaves 1,082 NYC users, 9,400 test days and 22,772 test events per seed, or 1,070 CA users, 5,385 test days and 17,466 test events per seed.
+Stage 2 training consumes prepared source-event embeddings. Stage 3 generation
+consumes the corresponding source code archive, static maps, fitted weights
+and aggregate target Home quota. Target reference trajectories and user
+selection plans are opened only by verification/evaluation, not generation.
 
-## Files
+Prepared CA embeddings are direction-specific reused Stage 1 artifacts. The
+two NYC transfers share the same prepared source events and fitted model.
+File checksums in each configuration bind these choices explicitly.
 
-- `dataset/checkin_NY_TY2014/dataset_TSMC2014_NYC.txt`: original NYC source file (227,428 records; the processed archive contains 227,427).
-- `dataset/Gowalla-CA/gowalla_{train,val,test}.csv`: supplied California input partitions. Subsequent model user/day splits are recorded in the processed archives.
-- `dataset/prepared/ca_to_{nyc,paris}/`: historical source-event features and train/validation/test user membership for optional prepared-input training.
-- `inputs/*/source_codes.npz`: frozen source codes and schedules.
-- `inputs/*/target_reference.npz`: processed target check-ins and splits, including the used Paris subset of global Foursquare.
-- `dataset/{CA,NYC,PARIS}_grid_merged_features.csv`: 105,640, 7,376, and 709 emitted static grids, respectively. Grid IDs are sparse identifiers, not row numbers.
-
-The raw NYC and CA files support full fresh-training commands. Paris is a target in all four experiments, so its fixed processed reference is sufficient. To independently rebuild Paris preprocessing, obtain the original worldwide check-in and POI files and set their paths in `configs/city_paths.example.json`; bounding boxes are in `dataset/grid_spec.json`. Credits and data rights are described in `THIRD_PARTY_DATA.md`.
+The shipped checkpoint export removes machine-specific paths and optimizer
+resume state. Model tensors and numerical data arrays are unchanged; hashes
+were rebound after metadata export. `checkpoints/manifest.json` records both
+the original and release hashes. No historical predictions or metrics are
+required to run the model.

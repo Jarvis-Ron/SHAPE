@@ -1,12 +1,33 @@
 {
-  "direction": "nyc_to_paris",
-  "source_city": "nyc",
-  "target_city": "paris",
   "configuration": {
-    "weighted_rank": true,
+    "kappa": 0,
     "lambda": 0,
-    "kappa": 0
+    "weighted_rank": true
   },
+  "direction": "nyc_to_paris",
+  "evaluation_metadata": "../dataset/evaluation/nyc_to_paris.json",
+  "expected_sha256": {
+    "evaluation_metadata": "1169a8e13e685b8805ee52ac4ec621e1c1cd80ff810ede9fcb5ec06974577a97",
+    "grid_checkpoint": "fa2b8b42d2ccf3108a8bc963773a45fae82271431c44c0c8a13a1b2892284a50",
+    "home_quota": "6fb88b1d7039029980047809e4d166bd3f7aa00775a22c3dbe67b88fcd420445",
+    "landing_checkpoint": "137425077f3e1b9be0484fe0fad5484786194e66e6ed1f506292d38ba06cd1d6",
+    "learned_context_checkpoint": "2386f1ce0de1da13c9ed7fd92344f1505dba202a4c185161615bd0b160c26b5e",
+    "learned_landing_checkpoint": "9372514f59ffcb4c7bf09c99f99e07930e35b5eee606035c0274c2ad08e3a980",
+    "source_codes": "8628997208dc3db459eeb5a4ff6577877624ea4d37ad6e8df33755dd4ea9e2ae",
+    "source_grid": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
+    "target_grid": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1",
+    "target_reference": "1f01eccbee1540da2f560fc96eb6b21e2a3a7ba646c2fa692832dd3b5831f591",
+    "tokenizer_checkpoint": "83e813cb27e67bc5ef4de5334467171c84713bf58367a55d19433b03fc3622c7",
+    "user_selection": "03f7d4ca43be2d53b7edb6d15bb7c91f84d781d5a15fbdb7899d6b34cee33e2c"
+  },
+  "grid_checkpoint": "../checkpoints/nyc/grid.pth",
+  "home_quota": "../dataset/home_quotas/nyc_to_paris.json",
+  "landing_checkpoint": "../checkpoints/nyc/landing.pth",
+  "learned_context_checkpoint": "../checkpoints/nyc/learned_context.pth",
+  "learned_landing_checkpoint": "../checkpoints/nyc/learned_landing.pth",
+  "mechanism": "shape_source_learned_context_v2",
+  "model_source_commit": "cc4faf5346ec30138b727f9dca925beb5f3e2849",
+  "protocol": "equal_complete_users_v1",
   "seeds": [
     42,
     43,
@@ -14,22 +35,14 @@
     45,
     46
   ],
-  "protocol": "per_seed_shell",
-  "source_codes": "../inputs/nyc_to_paris/source_codes.npz",
-  "landing_checkpoint": "../inputs/nyc_to_paris/landing.pth",
-  "target_reference": "../inputs/nyc_to_paris/target_reference.npz",
+  "source_city": "nyc",
+  "source_codes": "../dataset/prepared/nyc/source_codes.npz",
+  "source_events": "../dataset/prepared/nyc",
   "source_grid": "../dataset/NYC_grid_merged_features.csv",
+  "target_city": "paris",
   "target_grid": "../dataset/PARIS_grid_merged_features.csv",
-  "expected_sha256": {
-    "source_codes": "a40f91c667c827a02e810461b7b40163cd645290ebf7010755985e542a369aeb",
-    "landing_checkpoint": "55336bad780d45af274bddc3cfb9b805ee441ace5538a35991643aa478b725c6",
-    "target_reference": "1f01eccbee1540da2f560fc96eb6b21e2a3a7ba646c2fa692832dd3b5831f591",
-    "source_grid": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
-    "target_grid": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1"
-  },
-  "archived_predictions": "../inputs/nyc_to_paris/predictions.npz",
-  "original_shell_plans": "../inputs/nyc_to_paris/shell_plans.npz",
-  "shell_length_policy": "strict",
-  "mechanism": "shape_no_layer_semantics_no_aux_rank_only_v3",
-  "bundled_artifacts": "historical_semantic_supervision_and_distance_cost"
+  "target_reference": "../dataset/reference/paris.npz",
+  "tokenizer_checkpoint": "../checkpoints/nyc/tokenizer.pth",
+  "tokenizer_training_contract": "residual_fsq_no_layer_semantics_no_aux_v3",
+  "user_selection": "../dataset/evaluation/nyc_to_paris_users.npz"
 }

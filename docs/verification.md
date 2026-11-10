@@ -1,77 +1,28 @@
-# Executed verification
+# Verification
 
-## Current implementation checks
+Run `python run_full_pipeline.py --mode verify --direction all` after cloning.
+The command validates file hashes, source tokenizer/head lineage, both learned
+checkpoint schemas and bindings, and the exact ordered user populations for
+the evaluation selections. It reports 68 landing and seven context parameters
+for each direction.
 
-`python -m pytest -q`: **82 passed** on CPU. Python compilation and the
-four-direction training-plan dry run also passed. No GPU run was performed.
+Run `python -m pytest -q` for numerical model tests and release-interface tests.
+These cover disabled auxiliary supervision, real checkpoint/export/head I/O,
+rank-bin acceleration, learned context gradients, Home quota preservation,
+source-only training inputs and the evaluation sampling unit.
 
-The regression suite checks removed semantic options and legacy checkpoint
-rejection, residual-projection gradients, the exact training-loss components,
-rank-preserving distance-scale invariance, removal of Pareto-cost sampler
-arguments, stationary source profiles, and historical source-code rejection
-before generation reads target data. Candidate regressions exercise radius
-supplementation, top-k destinations outside the radius, and unchanged
-full-vocabulary rank generation. Separate checks cover retained physical kernels.
+`checkpoints/manifest.json` records the original and published artifact hashes.
+The export removes private path metadata and optimizer resume state, updates
+dependent checksum bindings, and preserves model tensors/data arrays. These
+are the fitted final-model artifacts, not weights from a new training run.
 
-The revised sampler was also compared directly with revision
-`fb1f69aa79073e0769a7686fbba6b4eedcde349f` using `distance_cost_gamma=0`.
-All 45 combinations of five sampler paths (basic, point, physical mixture,
-coarse rank and piecewise rank), three seeds and three radius multipliers
-produced identical trajectories and pre-existing audit fields. Enabling
-`gamma=2` in the original coarse-rank control changed outputs, confirming that
-the fixtures distinguish the removed term from candidate construction.
+Source statistics remain bound to the exact code, map and head files. For
+attraction statistics, the loader also accepts an exact fingerprint of the
+effective arrays and role labels. This avoids a false mismatch when BLAS
+implementations differ only in discarded float64 intermediate bits. There is
+no tolerance or rounding of the arrays used by the model; rank-statistic
+checks remain unchanged.
 
-A synthetic integration test trains a small tokenizer for one epoch, saves and
-reloads it, exports 72 events, trains a landing head for one epoch, and generates
-trajectories on the static Paris grid with a synthetic aggregate home quota.
-It passes the fixed runner's explicit rank configuration through the production sampler and
-checks target vocabulary and output alignment. This is an interface and
-mechanism check, not a research accuracy experiment. No full-data retraining
-or performance evaluation of the changed model has been executed.
-
-## Historical release verification
-
-The checks below describe the earlier release, before removing layer semantic
-supervision and the additive Pareto distance cost. Their numerical receipts and
-bundled artifacts are retained; they do not validate the changed model's scores.
-
-The packaged native scorer recomputed all four historical rows from the supplied
-original generated trajectories and target references. Across 11,025 primary
-metric values, the largest absolute discrepancy from the archived original
-scores was below 2e-16. All five reported means and sample standard deviations
-match at four decimal places. This checks trajectories, not just summary JSON.
-Per-direction counts and errors are in `release_validation.json`.
-
-The local test suite passed 64 tests: static-grid training/extraction, source
-feature isolation, FSQ and auxiliary-loss backpropagation, attention batching,
-weighted-rank ties, distance cost, target-home boundaries, pipeline stage
-routing, archived-draw reproduction, and distinct seed/shell uncertainty units.
-A synthetic integration test exports source codes, trains a source landing
-head, saves its bindings, and reloads the checkpoint. A real two-user CA export
-also succeeded using the bundled tokenizer, prepared features, and raw calendar.
-
-NYC → Paris was additionally regenerated for all five seeds on CPU. Three
-seeds reproduced every grid ID; seeds 43 and 45 differed in 15 and 1 events,
-respectively, out of 22,772 events each. The regenerated spatiotemporal mean
-rounds to 0.2501 instead of the archived 0.2500; the other reported entries match
-to four decimals. Frozen probabilities near a sampling boundary can produce
-hardware-dependent trajectories. Original predictions remain the reference
-for exact historical scoring and were not replaced by the CPU rerun.
-
-The earlier NYC → CA native generation regression is retained in
-`provenance/nyc_to_ca/refactor_regression.json`. It reproduced all three original
-prediction arrays exactly on the original CUDA software stack. That historical
-receipt is distinct from the current local CPU checks.
-
-Metadata anonymization checked 5,964 numerical arrays/tensors against their
-archived values, with no value changes. The NYC → Paris representative loss was
-obtained by a real 20-epoch source landing-head rerun. All other plotted loss
-histories are original records. The representative rerun does not replace the
-frozen evaluation weights.
-
-Fresh full-data three-stage training for all directions has not been executed
-as part of this release check. Its commands, source-only supervision, synthetic
-I/O, and prepared-CA export path were checked. Historical upstream embeddings
-and current raw preparation are distinct workflows; the release does not claim
-bitwise reconstruction of unavailable upstream histories. Tested package
-versions are recorded in `environment.json`.
+Generation writes a manifest that binds its inputs and output predictions.
+Evaluation additionally records all 200 metric draws for each of the five
+seeds. These generated outputs belong under ignored `results/` directories.

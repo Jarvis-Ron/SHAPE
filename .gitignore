@@ -57,4 +57,4 @@ predictions/
 /SHAPE/stage2/*_event_driven/
 /core
 /core.*
-# Bundled dataset/, inputs/, reference_results/, and training_loss/ are tracked.
+# Only current dataset/ and checkpoints/ artifacts are bundled.

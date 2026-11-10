@@ -1,0 +1,17 @@
+{
+  "eligible_real_users": 1205,
+  "eligible_synthetic_users": 1032,
+  "generation_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "protocol": "equal_complete_users_v1",
+  "repeats": 200,
+  "source_user_order_sha256": "f5a03383f86a3ab8c64f20164a0c5f7a88124f4fa7c41241635aab4347845105",
+  "target_user_order_sha256": "183a93aeb1df96485deccdefba9286cc74b55d85f5f808d38e5be57291b44f5b",
+  "user_selection_sha256": "3f24b62a86a79fff655c1e9e17bed82590b4401f44e198798b420c67eb1bdaef",
+  "users_per_side": 1032
+}

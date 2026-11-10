@@ -1,45 +1,56 @@
-"""Recompute the published row from stored draws, without inventing a rerun."""
+"""Check the final model, its data bindings, and matched-user evaluation plans."""
 import argparse
-import csv
-import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
+import torch
 
-FIVE = {
-    'M2_od_cpc': 'OD CPC',
-    'M3_period_space_jsd_mean': 'Spatiotemporal JSD',
-    'A_radius_of_gyration_distribution_jsd': 'RoG JSD',
-    'A_jump_distance_spectrum_jsd': 'Jump-length JSD',
-    'A_visited_poi_category_share_jsd': 'POI-category JSD',
-}
+from SHAPE.reproduce import check_inputs, load_source, load_reference, read_spec
+from SHAPE.evaluation.matched_users import validate_plans
+from SHAPE.stage3.contracts import require_current_tokenizer_training, sha256_file
+from SHAPE.stage3.learned_context import load_context
+from SHAPE.stage3.learned_landing import load_learned_landing
+from SHAPE.stage3.metrics import primary_subset
 
 
-def verify(root):
-    root = Path(root)
-    expected = json.loads((root/'result.json').read_text())
-    with (root/'metric_draws.csv').open(newline='') as handle:
-        rows = list(csv.DictReader(handle))
-    output = {'method': 'SHAPE nyc→ca'}
-    for key, label in FIVE.items():
-        selected = [row for row in rows if row['metric'] == key]
-        if sorted(int(row['repeat']) for row in selected) != list(range(200)):
-            raise ValueError('Missing or duplicate shell draws: ' + key)
-        values = np.asarray([float(row['value']) for row in selected])
-        mean, std = float(values.mean()), float(values.std(ddof=1))
-        if not np.isfinite(values).all() or not np.isclose(mean, expected['means'][key], atol=1e-14, rtol=0) or not np.isclose(std, expected['stds'][key], atol=1e-14, rtol=0):
-            raise ValueError('Historical numerical reference changed: ' + key)
-        output[label] = f'{mean:.4f} ± {std:.4f}'
-    return output
+def verify(path):
+    spec = read_spec(path)
+    check_inputs(spec)
+    with np.load(spec['source_codes'], allow_pickle=False) as a:
+        require_current_tokenizer_training(a)
+        tokenizer_hash = str(a['tokenizer_sha256'].item())
+    if tokenizer_hash != sha256_file(spec['tokenizer_checkpoint']):
+        raise ValueError('Tokenizer/source archive binding changed')
+    tokenizer = torch.load(spec['tokenizer_checkpoint'], map_location='cpu', weights_only=False)
+    if any(tokenizer['config'].get(k, 0) != 0 for k in ('jump_aux_weight', 'poi_aux_weight', 'time_aux_weight')):
+        raise ValueError('Stage 2 auxiliary supervision must be disabled')
+    head = torch.load(spec['landing_checkpoint'], map_location='cpu', weights_only=False)
+    if head['tokenizer_sha256'] != tokenizer_hash or head['codes_sha256'] != sha256_file(spec['source_codes']):
+        raise ValueError('Landing/source archive binding changed')
+    common = {k: spec[k] for k in ('source_codes', 'landing_checkpoint', 'source_grid', 'source_city')}
+    landing, _ = load_learned_landing(spec['learned_landing_checkpoint'], **common)
+    context, _ = load_context(spec['learned_context_checkpoint'],
+                              learned_landing_checkpoint=spec['learned_landing_checkpoint'], **common)
+    _, payloads = load_source(spec)
+    _, _, target, _ = load_reference(spec)
+    source = payloads['source_test_real']
+    source_sub = primary_subset(source, source['features'][:, 0])
+    target_sub = primary_subset(target, target['values'])
+    with np.load(spec['user_selection'], allow_pickle=False) as a:
+        sp, tp = a['synthetic_indices'], a['real_indices']
+    metadata = json.loads(Path(spec['evaluation_metadata']).read_text())
+    validate_plans(np.unique(source_sub['users']), np.unique(target_sub['users']), sp, tp, metadata)
+    result = dict(direction=spec['direction'], status='verified', users_per_side=sp.shape[1],
+                  learned_landing_parameters=sum(p.numel() for p in landing.parameters()),
+                  learned_context_parameters=sum(p.numel() for p in context.parameters()))
+    print(json.dumps(result), flush=True)
+    return result
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--reference', default=str(Path(__file__).parents[1]/'provenance/nyc_to_ca'))
+    parser.add_argument('--spec', required=True)
     args = parser.parse_args(argv)
-    print(json.dumps(verify(args.reference), ensure_ascii=False, indent=2))
-
-
-if __name__ == '__main__':
-    main()
+    torch.set_num_threads(1)
+    verify(args.spec)

@@ -45,3 +45,11 @@ def test_only_source_observed_codes_enter_five_sampling_lanes():
     assert all(t['generator_seed'] is None and t['scale_mode']=='rank' for t in tasks)
     with pytest.raises(ValueError):
         make_x1_hra_tasks({'target_test_real':{}},load_contract())
+
+
+def test_public_encoder_has_no_depth_ablation_controls(capsys):
+    from SHAPE.stage3.prepare_codes import parse_args
+    for option in ('--analysis-only-variable-depth', '--pad-analysis-codes-to-three'):
+        with pytest.raises(SystemExit):
+            parse_args([option])
+        assert 'unrecognized arguments' in capsys.readouterr().err

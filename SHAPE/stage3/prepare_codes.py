@@ -416,20 +416,6 @@ def parse_args(argv=None):
             "another city and record an evaluation-only provenance receipt."
         ),
     )
-    parser.add_argument(
-        "--analysis-only-variable-depth", action="store_true",
-        help=(
-            "Write the isolated depth-ablation schema instead of a Phase-2 "
-            "consumer artifact; permits non-3-layer and non-64-code models"
-        ),
-    )
-    parser.add_argument(
-        "--pad-analysis-codes-to-three", action="store_true",
-        help=(
-            "Right-pad one/two-layer analysis codes with constant zeros for "
-            "explicit fixed-shape downstream controls"
-        ),
-    )
     return parser.parse_args(argv)
 
 
@@ -464,8 +450,6 @@ def main(argv=None):
         source_city=args.source_city,
         grid_csv=args.grid_csv or paths["grid_csv"],
         evaluation_only_cross_city=args.evaluation_only_cross_city,
-        analysis_only_variable_depth=args.analysis_only_variable_depth,
-        pad_analysis_codes_to_three=args.pad_analysis_codes_to_three,
     )
     print(json.dumps(metadata, indent=2, ensure_ascii=False))
 

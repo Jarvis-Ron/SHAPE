@@ -8,7 +8,7 @@ import sys
 
 import torch
 
-from SHAPE.reproduce import check_inputs, evaluate, generate, read_spec
+from SHAPE.reproduce import MODEL_INPUTS, check_inputs, evaluate, generate, read_spec
 from SHAPE.stage3.contracts import sha256_file, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,7 +60,7 @@ def training_plan(spec, output, device='cpu', fresh_grid=False):
 
 
 def train(spec, output, device, fresh_grid=False):
-    output = Path(output)
+    output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     (output / 'data').mkdir()
     (output / 'training').mkdir()
@@ -84,7 +84,10 @@ def train(spec, output, device, fresh_grid=False):
         if fresh_grid:
             fitted.update(grid_checkpoint=str(output / 'training/grid.pth'),
                           source_events=str(output / 'data/events'))
-        fitted['expected_sha256'] = {key: sha256_file(fitted[key]) for key in spec['expected_sha256']}
+        bound_keys = set(spec['expected_sha256']) | set(MODEL_INPUTS)
+        if fresh_grid:
+            bound_keys.add('grid_checkpoint')
+        fitted['expected_sha256'] = {key: sha256_file(fitted[key]) for key in sorted(bound_keys)}
         write_json(output / 'transfer.json', fitted)
         receipt['status'] = 'complete'
         return fitted
@@ -97,7 +100,9 @@ def train(spec, output, device, fresh_grid=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--direction', choices=(*DIRECTIONS, 'all'), default='all')
+    inputs = parser.add_mutually_exclusive_group()
+    inputs.add_argument('--direction', choices=(*DIRECTIONS, 'all'), default='all')
+    inputs.add_argument('--spec', help='Use a transfer.json produced by training for generation or evaluation')
     parser.add_argument('--mode', choices=('verify', 'generate', 'reproduce', 'train'), default='verify',
                         help='verify assets; generate five seeds; reproduce generates and evaluates; train refits Stage 2 and all Stage 3 weights, then generates and evaluates')
     parser.add_argument('--output', default='results/shape')
@@ -112,8 +117,10 @@ def main(argv=None):
         parser.error('--fresh-grid requires --mode train')
     torch.set_num_threads(1)
     directions = DIRECTIONS if args.direction == 'all' else (args.direction,)
-    for direction in directions:
-        spec = read_spec(ROOT / 'configs' / f'{direction}.json')
+    spec_paths = [Path(args.spec)] if args.spec else [ROOT / 'configs' / f'{d}.json' for d in directions]
+    for spec_path in spec_paths:
+        spec = read_spec(spec_path, require_fitted=args.mode in ('generate', 'reproduce'))
+        direction = spec['direction']
         destination = Path(args.output).resolve() / direction
         if args.dry_run:
             print(f'{direction}: {args.mode}; latest learned context; five generation seeds')
@@ -124,9 +131,9 @@ def main(argv=None):
             continue
         if args.mode == 'verify':
             from SHAPE.verify import verify
-            verify(ROOT / 'configs' / f'{direction}.json')
+            verify(spec_path)
             continue
-        check_inputs(spec, generation=args.mode == 'generate')
+        check_inputs(spec, generation=args.mode == 'generate', require_fitted=args.mode != 'train')
         destination.mkdir(parents=True, exist_ok=False)
         if args.mode == 'train':
             spec = train(spec, destination / 'fit', args.device, args.fresh_grid)

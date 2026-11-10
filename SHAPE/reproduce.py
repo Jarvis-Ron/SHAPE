@@ -29,9 +29,18 @@ from SHAPE.stage3.tasks import FIXED_VARIANT, load_contract, make_x1_hra_tasks
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOLS = {'equal_complete_users_v1'}
+MODEL_INPUTS = ('tokenizer_checkpoint', 'landing_checkpoint',
+                'learned_landing_checkpoint', 'learned_context_checkpoint')
 
 
-def read_spec(path):
+def require_bindings(spec, keys):
+    for key in keys:
+        if not spec.get(key) or key not in spec.get('expected_sha256', {}):
+            hint = ' Train first and use the resulting fit/transfer.json.' if key in MODEL_INPUTS else ''
+            raise ValueError('Latest SHAPE requires a bound input with an expected checksum: ' + key + hint)
+
+
+def read_spec(path, *, require_fitted=True):
     path = Path(path).resolve()
     spec = json.loads(path.read_text())
     if spec['configuration'] != FIXED_VARIANT or spec['protocol'] not in PROTOCOLS:
@@ -45,23 +54,17 @@ def read_spec(path):
                 'learned_landing_checkpoint', 'learned_context_checkpoint'):
         if spec.get(key):
             spec[key] = str((path.parent / spec[key]).resolve())
-    for key in ('learned_landing_checkpoint', 'learned_context_checkpoint', 'home_quota',
-                'user_selection', 'evaluation_metadata'):
-        if not spec.get(key) or key not in spec['expected_sha256']:
-            raise ValueError('Latest SHAPE requires a bound input with an expected checksum: ' + key)
+    require_bindings(spec, ('home_quota', 'user_selection', 'evaluation_metadata'))
+    if require_fitted:
+        require_bindings(spec, MODEL_INPUTS)
     return spec
 
 
-def check_inputs(spec, *, generation=False):
+def check_inputs(spec, *, generation=False, require_fitted=True):
     bindings = {}
-    for key in ('learned_landing_checkpoint', 'learned_context_checkpoint', 'home_quota'):
-        if not spec.get(key) or key not in spec['expected_sha256']:
-            raise ValueError('Latest SHAPE requires a bound input with an expected checksum: ' + key)
-    if spec.get('learned_context_checkpoint') and (not spec.get('learned_landing_checkpoint') or
-            'learned_context_checkpoint' not in spec['expected_sha256']):
-        raise ValueError('Learned context requires a bound learned landing checkpoint and checksum')
-    if spec.get('learned_landing_checkpoint') and 'learned_landing_checkpoint' not in spec['expected_sha256']:
-        raise ValueError('Learned landing checkpoint requires an expected checksum')
+    require_bindings(spec, ('home_quota',))
+    if require_fitted:
+        require_bindings(spec, MODEL_INPUTS)
     for key, expected in spec['expected_sha256'].items():
         if generation and key in ('target_reference', 'user_selection', 'evaluation_metadata'):
             continue
@@ -97,11 +100,11 @@ def sampling_tasks(payloads, contract, seeds):
 
 
 def generate(spec, output, device, lanes=1):
+    bindings = check_inputs(spec, generation=True)
     with np.load(spec['source_codes'], allow_pickle=False) as archive:
         require_current_tokenizer_training(archive)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
-    bindings = check_inputs(spec, generation=True)
     cohort, payloads = load_source(spec)
     contract = load_contract()
     landing = contract['frozen_landing']

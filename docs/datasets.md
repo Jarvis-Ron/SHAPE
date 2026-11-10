@@ -22,11 +22,5 @@ and aggregate target Home quota. Target reference trajectories and user
 selection plans are opened only by verification/evaluation, not generation.
 
 Prepared CA embeddings are direction-specific reused Stage 1 artifacts. The
-two NYC transfers share the same prepared source events and fitted model.
+two NYC transfers share the same prepared source events.
 File checksums in each configuration bind these choices explicitly.
-
-The shipped checkpoint export removes machine-specific paths and optimizer
-resume state. Model tensors and numerical data arrays are unchanged; hashes
-were rebound after metadata export. `checkpoints/manifest.json` records both
-the original and release hashes. No historical predictions or metrics are
-required to run the model.

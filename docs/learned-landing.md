@@ -49,8 +49,9 @@ the initialization as epoch zero. Training writes `history.json`, `report.json`
 and `learned_landing.pth`. These optimizer/budget choices remain fixed settings;
 making scoring parameters learnable does not eliminate all hyperparameters.
 
-The released configurations bind this checkpoint together with the additional
-`learned_context_checkpoint`. Both are required. A checkpoint is rejected when
+Training writes a `fit/transfer.json` specification that binds this checkpoint
+together with the additional `learned_context_checkpoint`. Both are required
+for generation. A checkpoint is rejected when
 its source codes, source static table, frozen head or source statistics differ.
 Generation manifests record the fitted parameters and checkpoint hashes.
 

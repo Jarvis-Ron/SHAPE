@@ -1,14 +1,12 @@
 # SHAPE
 
 SHAPE transfers source-city activity schedules to a target city's grid cells.
-This repository contains the final model with source-learned landing and Home
-context parameters, its fitted checkpoints, and the data needed for the four
+This repository contains the final model code with source-learned landing and
+Home context parameters, and the data needed for the four
 transfer directions: NYC → CA, NYC → Paris, CA → NYC, and CA → Paris.
 
-The model implementation comes from `cc4faf5`. The release packages that fitted
-model with portable paths and current training, generation, and evaluation
-entry points. Model tensors and numerical data arrays are preserved; metadata
-paths and dependent file hashes are updated. See `checkpoints/manifest.json`.
+The model implementation comes from `cc4faf5`, with training, generation, and
+evaluation entry points. Train the model before generating trajectories.
 
 ## Install and verify
 
@@ -20,40 +18,42 @@ python run_full_pipeline.py --mode verify --direction all
 python -m pytest -q
 ```
 
-Verification checks the four configurations, checkpoint/data hashes, disabled
-Stage 2 auxiliary losses, both learned Stage 3 components, and evaluation user
-populations. It does not train a model or claim a new experimental result.
+Verification checks the four data configurations, file hashes, source-code
+training contract, and evaluation user populations. It does not train a model.
 
-## Generate and evaluate
-
-```bash
-python run_full_pipeline.py --mode reproduce --direction nyc_to_paris \
-  --device cuda:0 --output results/latest
-```
-
-Use `--direction all` for all four directions, or `--mode generate` to generate
-without reading target evaluation data. CPU execution uses `--device cpu`.
-Each run uses generation seeds 42–46 and writes predictions plus provenance.
-Evaluation writes `evaluation/result.json`, `metric_draws.npz`, and `table.md`
-with OD CPC, Spatiotemporal JSD, RoG JSD, and Jump-length JSD.
-Output directories must be new to prevent accidental overwrites.
-
-## Train the model
+## Train, generate and evaluate
 
 ```bash
 # Preview the commands without starting training.
 python run_full_pipeline.py --mode train --direction nyc_to_paris --dry-run
 
-# Reuse the supplied Stage 1 event embeddings and fit Stage 2 and Stage 3.
+# Reuse the prepared Stage 1 event embeddings and fit Stage 2 and Stage 3.
 python run_full_pipeline.py --mode train --direction nyc_to_paris \
   --device cuda:0 --output results/refit
 ```
 
+Use `--direction all` for all four directions. CPU execution uses `--device cpu`.
+Each run uses generation seeds 42–46 and writes predictions plus provenance.
+Evaluation writes `evaluation/result.json`, `metric_draws.npz`, and `table.md`
+with OD CPC, Spatiotemporal JSD, RoG JSD, and Jump-length JSD.
+Output directories must be new to prevent accidental overwrites.
+
 The training chain fits the tokenizer, exports source codes, fits the neural
 landing head, then fits the landing weights and Home context parameters.
-`--fresh-grid` additionally retrains Stage 1 and rebuilds source events. Fresh
-training is a new experiment; use the supplied checkpoints to run the released
-fitted model. GPU time and memory depend on the source city and hardware.
+It writes a bound model specification to `fit/transfer.json`, then generates
+and evaluates five seeds. `--fresh-grid` additionally retrains Stage 1 and
+rebuilds source events. Training results may vary across hardware and platforms.
+
+To generate again using your trained model, without reading target evaluation
+data:
+
+```bash
+python run_full_pipeline.py --mode generate \
+  --spec results/refit/nyc_to_paris/fit/transfer.json \
+  --device cuda:0 --output results/generated
+```
+
+Use `--mode reproduce` with the same `--spec` to generate and evaluate together.
 
 ## Model and information conditions
 
@@ -86,13 +86,12 @@ or five times as many independent people.
 | Directory | Contents |
 |---|---|
 | `SHAPE/` | Current three-stage model, training and evaluation code |
-| `configs/` | Four configurations bound to the final fitted model |
-| `checkpoints/` | Reused Stage 1, no-auxiliary-loss Stage 2, and complete learned Stage 3 |
+| `configs/` | Four training-data and evaluation configurations |
 | `dataset/` | Static maps, source data, processed reference data, Home quotas and evaluation selections |
 | `tests/` | Model and release verification |
 
-NYC-source directions share one fitted source model. The two CA-source
-directions retain their corresponding fitted models and prepared embeddings.
+NYC-source directions share the same prepared source events. The two CA-source
+directions retain their corresponding prepared embeddings.
 Only the current model and supporting data are included in the working tree;
 comparison models, ablation runners, old predictions and historical score
 tables are omitted. Git history is retained.

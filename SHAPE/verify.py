@@ -1,4 +1,4 @@
-"""Check the final model, its data bindings, and matched-user evaluation plans."""
+"""Check data, matched-user plans, and trained model bindings when provided."""
 import argparse
 import json
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from SHAPE.reproduce import check_inputs, load_source, load_reference, read_spec
+from SHAPE.reproduce import MODEL_INPUTS, check_inputs, load_source, load_reference, read_spec
 from SHAPE.evaluation.matched_users import validate_plans
 from SHAPE.stage3.contracts import require_current_tokenizer_training, sha256_file
 from SHAPE.stage3.learned_context import load_context
@@ -14,12 +14,7 @@ from SHAPE.stage3.learned_landing import load_learned_landing
 from SHAPE.stage3.metrics import primary_subset
 
 
-def verify(path):
-    spec = read_spec(path)
-    check_inputs(spec)
-    with np.load(spec['source_codes'], allow_pickle=False) as a:
-        require_current_tokenizer_training(a)
-        tokenizer_hash = str(a['tokenizer_sha256'].item())
+def verify_model(spec, tokenizer_hash):
     if tokenizer_hash != sha256_file(spec['tokenizer_checkpoint']):
         raise ValueError('Tokenizer/source archive binding changed')
     tokenizer = torch.load(spec['tokenizer_checkpoint'], map_location='cpu', weights_only=False)
@@ -32,6 +27,18 @@ def verify(path):
     landing, _ = load_learned_landing(spec['learned_landing_checkpoint'], **common)
     context, _ = load_context(spec['learned_context_checkpoint'],
                               learned_landing_checkpoint=spec['learned_landing_checkpoint'], **common)
+    return dict(learned_landing_parameters=sum(p.numel() for p in landing.parameters()),
+                learned_context_parameters=sum(p.numel() for p in context.parameters()))
+
+
+def verify(path):
+    spec = read_spec(path, require_fitted=False)
+    has_model = any(spec.get(key) for key in MODEL_INPUTS)
+    check_inputs(spec, require_fitted=has_model)
+    with np.load(spec['source_codes'], allow_pickle=False) as a:
+        require_current_tokenizer_training(a)
+        tokenizer_hash = str(a['tokenizer_sha256'].item())
+    model_report = verify_model(spec, tokenizer_hash) if has_model else {}
     _, payloads = load_source(spec)
     _, _, target, _ = load_reference(spec)
     source = payloads['source_test_real']
@@ -42,8 +49,7 @@ def verify(path):
     metadata = json.loads(Path(spec['evaluation_metadata']).read_text())
     validate_plans(np.unique(source_sub['users']), np.unique(target_sub['users']), sp, tp, metadata)
     result = dict(direction=spec['direction'], status='verified', users_per_side=sp.shape[1],
-                  learned_landing_parameters=sum(p.numel() for p in landing.parameters()),
-                  learned_context_parameters=sum(p.numel() for p in context.parameters()))
+                  scope='model_and_data' if has_model else 'data', **model_report)
     print(json.dumps(result), flush=True)
     return result
 

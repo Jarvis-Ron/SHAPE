@@ -40,6 +40,7 @@ wandb/
 data_cache/
 SHAPE/**/output/
 SHAPE/**/checkpoints/
+/checkpoints/
 
 # Intermediate experiment and build artifacts
 /experiments
@@ -57,4 +58,3 @@ predictions/
 /SHAPE/stage2/*_event_driven/
 /core
 /core.*
-# Only current dataset/ and checkpoints/ artifacts are bundled.

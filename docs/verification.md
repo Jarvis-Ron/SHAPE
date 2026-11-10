@@ -1,20 +1,24 @@
 # Verification
 
 Run `python run_full_pipeline.py --mode verify --direction all` after cloning.
-The command validates file hashes, source tokenizer/head lineage, both learned
-checkpoint schemas and bindings, and the exact ordered user populations for
-the evaluation selections. It reports 68 landing and seven context parameters
-for each direction.
+The command validates data file hashes, the source-code training contract, and
+the exact ordered user populations for the evaluation selections. It reports
+`scope: data` for the checked-in configurations.
+
+After training, validate the resulting model and data together with:
+
+```bash
+python -m SHAPE verify --spec results/refit/nyc_to_paris/fit/transfer.json
+```
+
+This additionally checks tokenizer/head lineage, disabled Stage 2 auxiliary
+losses, and both learned Stage 3 components and their source bindings. The
+report has `scope: model_and_data` and includes their parameter counts.
 
 Run `python -m pytest -q` for numerical model tests and release-interface tests.
 These cover disabled auxiliary supervision, real checkpoint/export/head I/O,
 rank-bin acceleration, learned context gradients, Home quota preservation,
 source-only training inputs and the evaluation sampling unit.
-
-`checkpoints/manifest.json` records the original and published artifact hashes.
-The export removes private path metadata and optimizer resume state, updates
-dependent checksum bindings, and preserves model tensors/data arrays. These
-are the fitted final-model artifacts, not weights from a new training run.
 
 Source statistics remain bound to the exact code, map and head files. For
 attraction statistics, the loader also accepts an exact fingerprint of the

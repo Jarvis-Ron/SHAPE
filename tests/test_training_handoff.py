@@ -137,8 +137,11 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
     target=StaticGrid.load(target_path,city='paris')
     counts=np.zeros(len(target.grid_ids),dtype=int)
     counts[0]=4
-    quota=dict(schema='target_train_home_quota_v1',grid_ids=target.grid_ids.tolist(),
-               home_counts=counts.tolist(),provenance={'fixture':True})
+    quota=dict(schema='target_public_population_quota_v1',city='paris',
+               grid_ids=target.grid_ids.tolist(),population_counts=counts.tolist(),
+               provenance=dict(source_kind='public_residential_population',
+                               dataset='synthetic test population', epoch=2010,
+                               target_checkins_used=False,grid_sha256=sha256_file(target_path)))
     source=dict(reference_codes=codes,checkpoint=landing,grid_csv=grid_path,
         binding={},arms={'D1A1_raw':{'parameters':{key:params[key] for key in
             ('selection_mode','selection_temperature','distance_mode','distance_tau',
@@ -149,7 +152,9 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
     audit=transferred['provenance']
     assert audit['pareto_distance_cost'] is False
     assert audit['target_train_distance_quantiles_used_by_distance_scale'] is False
-    assert audit['target_train_statistics']==['population_home_marginal']
+    assert audit['target_train_statistics']==[]
+    assert audit['target_home']['input']=='public_population_counts'
+    assert audit['target_home']['fit_split'] is None
     tasks=make_x1_hra_tasks(payloads,contract)[:1]
     results=_run_e2_tasks(tasks,payloads,transferred,stage_label='rank-only-fixture',
         **{key:params[key] for key in ('landing_temperature','candidate_top_k',

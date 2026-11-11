@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from SHAPE.reproduce import MODEL_INPUTS, check_inputs, load_source, load_reference, read_spec
+from SHAPE.population import population_probabilities
 from SHAPE.evaluation.matched_users import validate_plans
 from SHAPE.stage3.contracts import require_current_tokenizer_training, sha256_file
 from SHAPE.stage3.learned_context import load_context
@@ -40,7 +41,9 @@ def verify(path):
         tokenizer_hash = str(a['tokenizer_sha256'].item())
     model_report = verify_model(spec, tokenizer_hash) if has_model else {}
     _, payloads = load_source(spec)
-    _, _, target, _ = load_reference(spec)
+    _, _, target, target_static = load_reference(spec)
+    quota = json.loads(Path(spec['home_quota']).read_text())
+    population_probabilities(quota, target_static.grid_ids, city=spec['target_city'])
     source = payloads['source_test_real']
     source_sub = primary_subset(source, source['features'][:, 0])
     target_sub = primary_subset(target, target['values'])
@@ -49,7 +52,8 @@ def verify(path):
     metadata = json.loads(Path(spec['evaluation_metadata']).read_text())
     validate_plans(np.unique(source_sub['users']), np.unique(target_sub['users']), sp, tp, metadata)
     result = dict(direction=spec['direction'], status='verified', users_per_side=sp.shape[1],
-                  scope='model_and_data' if has_model else 'data', **model_report)
+                  scope='model_and_data' if has_model else 'data',
+                  home_prior=quota['schema'], **model_report)
     print(json.dumps(result), flush=True)
     return result
 

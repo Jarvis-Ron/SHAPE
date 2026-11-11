@@ -8,7 +8,7 @@
 | `Gowalla-CA/` | Supplied California check-in partitions |
 | `prepared/nyc/`, `prepared/ca_to_nyc/`, `prepared/ca_to_paris/` | Source events, int64 grid IDs, user splits and codes from the released no-auxiliary-loss tokenizer |
 | `reference/{nyc,ca,paris}.npz` | Processed calendar-aware reference events used by evaluation |
-| `home_quotas/*.json` | Target training-home histograms supplied as inference conditions |
+| `population_quotas/{nyc,ca,paris}.json` | GHS-POP 2010 public residential population aggregated to the static grid vocabulary, with provenance and coverage |
 | `evaluation/*_users.npz`, `evaluation/*.json` | 200 complete-user selection plans and population/hash bindings |
 
 Paris is distributed here as processed reference data, not as the full original
@@ -18,9 +18,14 @@ terms and attribution in [THIRD_PARTY_DATA.md](../THIRD_PARTY_DATA.md).
 
 Stage 2 training consumes prepared source-event embeddings. Stage 3 generation
 consumes the corresponding source code archive, static maps, fitted weights
-and aggregate target Home quota. Target reference trajectories and user
+and public residential population weights. Target reference trajectories and user
 selection plans are opened only by verification/evaluation, not generation.
 
 Prepared CA embeddings are direction-specific reused Stage 1 artifacts. The
 two NYC transfers share the same prepared source events.
 File checksums in each configuration bind these choices explicitly.
+
+Population rasters are available from JRC, independently of all check-in files.
+The two Paris-target directions share the same population file. See
+[the population data protocol](public-population.md) for epoch selection,
+attribution, exact aggregation and excluded population.

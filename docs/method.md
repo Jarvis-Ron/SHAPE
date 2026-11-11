@@ -18,8 +18,10 @@ stability settings remain specified choices. Trainable parameters can retain
 their initial values when source validation selects initialization.
 
 There is no additive absolute-distance penalty. Geographic ordering and
-feasibility still use geometry. Target static attributes and a supplied
-aggregate training-home quota are inference inputs. This is source-schedule
+feasibility still use geometry. Target static attributes and public residential
+population are inference inputs. Population counts are converted to integer
+home capacities by Hamilton allocation, followed by source-learned context
+matching. No target training-check-in home histogram is used. This is source-schedule
 transfer under those conditions, not unconditional learning of target activity
 schedules. No target test outcomes select parameters or checkpoints.
 

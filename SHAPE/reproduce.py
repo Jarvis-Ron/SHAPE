@@ -11,6 +11,7 @@ import numpy as np
 import torch
 
 from SHAPE.gridspec import StaticGrid
+from SHAPE.population import population_probabilities
 from SHAPE.stage3.sampler import _compare_aggregates
 from SHAPE.stage3.context_memory import _run_e2_tasks
 from SHAPE.stage2.config import TOKENIZER_TRAINING_CONTRACT
@@ -72,6 +73,9 @@ def check_inputs(spec, *, generation=False, require_fitted=True):
         if actual != expected:
             raise ValueError(f'Input checksum mismatch: {key}')
         bindings[key] = actual
+    population_probabilities(json.loads(Path(spec['home_quota']).read_text()),
+                             city=spec['target_city'],
+                             grid_sha256=sha256_file(spec['target_grid']))
     return bindings
 
 
@@ -115,7 +119,7 @@ def generate(spec, output, device, lanes=1):
                   arms={'D1A1_raw': {'parameters': {k: landing[k] for k in
                         ('selection_mode', 'selection_temperature', 'distance_mode', 'distance_tau',
                          'attraction_mode', 'attraction_strength')}}})
-    # Only the explicit aggregate home histogram enters target conditioning.
+    # Public residential population replaces check-in-derived home histograms.
     homes, target_users = None, None
     quota = json.loads(Path(spec['home_quota']).read_text())
     runtime = prepare_transfer_runtime(source,
@@ -145,7 +149,8 @@ def generate(spec, output, device, lanes=1):
         mechanism='shape_source_learned_context_v2',
         tokenizer_training_contract=TOKENIZER_TRAINING_CONTRACT,
         target_reference_read_by_generation=False,
-        target_checkin_generation_use='aggregate_home_quota_only',
+        target_checkin_generation_use='none',
+        home_prior='public_residential_population',
         prediction_sha256=sha256_file(output / 'predictions.npz')))
     return output / 'predictions.npz'
 

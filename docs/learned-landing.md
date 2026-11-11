@@ -56,8 +56,8 @@ its source codes, source static table, frozen head or source statistics differ.
 Generation manifests record the fitted parameters and checkpoint hashes.
 
 Target static map attributes determine the available opportunities and
-attraction table. Target home quotas remain the existing protocol input; the
-learned gate does not infer or replace that population. Target trajectories
+attraction table. Target home quotas use public residential population; the
+learned gate does not infer that population. Target trajectories
 must not choose parameters or checkpoints. Five generation seeds are five
 sampling repeats of a fixed fitted model, not five independently trained models
 or five times as many independent people.

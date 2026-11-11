@@ -143,9 +143,16 @@ def test_training_graph_fits_both_learned_components_on_source_only(direction, t
 
 
 def test_quota_api_accepts_only_an_aligned_population_histogram():
-    quota = dict(schema='target_train_home_quota_v1', grid_ids=[2,4], home_counts=[1,3], provenance={})
+    quota = dict(schema='target_public_population_quota_v1', city='paris',
+                 grid_ids=[2,4], population_counts=[1.5,4.5],
+                 provenance=dict(source_kind='public_residential_population',
+                                 dataset='test population', epoch=2010, target_checkins_used=False))
     np.testing.assert_array_equal(quota_probability(quota, np.array([2,4])), [.25,.75])
-    for changed in [dict(quota, individual_trajectories=[]), dict(quota, home_counts=[1.5,2.5]),
-                    dict(quota, grid_ids=[4,2]), dict(quota, home_counts=[0,0])]:
+    for changed in [dict(quota, individual_trajectories=[]),
+                    dict(quota, schema='target_train_home_quota_v1'),
+                    dict(quota, grid_ids=[4,2]), dict(quota, population_counts=[0,0]),
+                    dict(quota, population_counts=[-1,2]),
+                    dict(quota, population_counts=[np.nan,2]),
+                    dict(quota, provenance=dict(quota['provenance'], target_checkins_used=True))]:
         with pytest.raises(ValueError):
             quota_probability(changed, np.array([2,4]))

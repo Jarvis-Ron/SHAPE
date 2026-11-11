@@ -11,6 +11,7 @@ COMMANDS = {
     'train-landing': ('stage3.landing_head', 'train_main'),
     'train-landing-weights': ('stage3.learned_landing', 'main'),
     'prepare-reference': ('reference', 'main'),
+    'prepare-population': ('population', 'main'),
     'train-context': ('stage3.learned_context', 'main'),
     'run': ('reproduce', 'main'),
     'pipeline': ('pipeline', 'main'),

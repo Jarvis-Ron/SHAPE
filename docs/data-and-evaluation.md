@@ -3,6 +3,10 @@
 The released protocol is `equal_complete_users_v1` for all four directions.
 Generation first produces every eligible source user's transferred schedule for
 each of seeds 42–46. Target test users are not used to construct those schedules.
+Home capacities use public GHS-POP population, not target training check-ins.
+This changes generated trajectories: older metric tables cannot be reused as
+results for the public-population configuration. The evaluation definition and
+user-selection plans below remain unchanged.
 
 Evaluation retains days with at least two events. Eligible users have at least
 one such day. For each direction, the user budget is the smaller of the

@@ -69,11 +69,16 @@ Use `--mode reproduce` with the same `--spec` to generate and evaluate together.
   that the model never uses geometry.
 
 Generation preserves source times and activity categories. Target static maps
-and an **aggregate target training-home quota** are allowed inputs. The quota
-is derived from target training check-ins and is supplied as a generation
-condition; it is not inferred from static residential attributes alone. Target
-test trajectories are used only for evaluation. This release therefore does
-not represent an unconditional, target-trajectory-free setting.
+and **public residential population** are the target-side generation inputs.
+The bundled GHS-POP R2023A 2010 population estimates replace the former
+training-check-in home histograms in all four directions. The generator rejects
+legacy check-in quotas and accepts no target trajectories. Source-learned home
+context matching and initial memory counts remain in use; home is both the daily
+start and a memory anchor. Target trajectories are read only by evaluation.
+This is conditional source-schedule transfer, not unconditional generation.
+See [population provenance and rebuilding](docs/public-population.md), including
+the population excluded by the existing static-grid support. Previous metric
+tables used the old quotas and are not results for this input revision.
 
 Evaluation matches the number of complete eligible users on each side for 200
 fixed selections. It does not match day or event counts. Each seed is scored
@@ -87,7 +92,7 @@ or five times as many independent people.
 |---|---|
 | `SHAPE/` | Current three-stage model, training and evaluation code |
 | `configs/` | Four training-data and evaluation configurations |
-| `dataset/` | Static maps, source data, processed reference data, Home quotas and evaluation selections |
+| `dataset/` | Static maps, source data, processed reference data, public population weights and evaluation selections |
 | `tests/` | Model and release verification |
 
 NYC-source directions share the same prepared source events. The two CA-source

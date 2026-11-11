@@ -8,8 +8,9 @@ Both learned checkpoints are required by the public release runner.
 The new parameters are the residential density/diversity mix used in home
 contexts, continuous effective neighborhood size, relative residential/POI
 matching cost weight, separate initial home and anchor counts, and two ordered
-global quantile levels for landing attributes. Exact target home quotas and the
-Hamilton assignment algorithm remain constraints, not learned quantities.
+global quantile levels for landing attributes. Target home quotas now come from
+public residential population. The apportioned integer quotas and Hamilton
+assignment algorithm remain constraints, not learned quantities.
 
 Home-context fitting uses source training-day Layer-0 code histograms grouped by
 source modal-home cell. A soft neighborhood distribution based on behavior JSD

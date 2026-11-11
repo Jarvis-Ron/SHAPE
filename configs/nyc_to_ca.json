@@ -8,14 +8,14 @@
   "evaluation_metadata": "../dataset/evaluation/nyc_to_ca.json",
   "expected_sha256": {
     "evaluation_metadata": "69341c32c69ad6f8e4027e456d8a279d0231eeda7fd44ef17aa36f05b2c84ad8",
-    "home_quota": "de72384b6143c065269516db9c62924c1f49c850afa841a7ba755cea89b1df6c",
+    "home_quota": "706f3163bbf90d8b4dfdbd62bcd5ee58707637bbbc5022aa639cf3d82d911190",
     "source_codes": "8628997208dc3db459eeb5a4ff6577877624ea4d37ad6e8df33755dd4ea9e2ae",
     "source_grid": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
     "target_grid": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d",
     "target_reference": "ac347ad66c75b513626010a79881acc7ad40afb4bd0a46818633897d38fe23d7",
     "user_selection": "10fbc72c705705cfe5bbee101f528845a5139e5c3416cae11d87303797cac300"
   },
-  "home_quota": "../dataset/home_quotas/nyc_to_ca.json",
+  "home_quota": "../dataset/population_quotas/ca.json",
   "mechanism": "shape_source_learned_context_v2",
   "model_source_commit": "cc4faf5346ec30138b727f9dca925beb5f3e2849",
   "protocol": "equal_complete_users_v1",
@@ -34,5 +34,6 @@
   "target_grid": "../dataset/CA_grid_merged_features.csv",
   "target_reference": "../dataset/reference/ca.npz",
   "tokenizer_training_contract": "residual_fsq_no_layer_semantics_no_aux_v3",
-  "user_selection": "../dataset/evaluation/nyc_to_ca_users.npz"
+  "user_selection": "../dataset/evaluation/nyc_to_ca_users.npz",
+  "home_prior": "public_residential_population"
 }

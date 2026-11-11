@@ -8,7 +8,7 @@
   "evaluation_metadata": "../dataset/evaluation/nyc_to_paris.json",
   "expected_sha256": {
     "evaluation_metadata": "1169a8e13e685b8805ee52ac4ec621e1c1cd80ff810ede9fcb5ec06974577a97",
-    "home_quota": "6fb88b1d7039029980047809e4d166bd3f7aa00775a22c3dbe67b88fcd420445",
+    "home_quota": "50095be53d3122f6c1ecffda377b5c8c3a40147b97e0547321b8701f21de30f9",
     "source_codes": "8628997208dc3db459eeb5a4ff6577877624ea4d37ad6e8df33755dd4ea9e2ae",
     "source_grid": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
     "target_grid": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1",

@@ -8,7 +8,7 @@
   "evaluation_metadata": "../dataset/evaluation/nyc_to_ca.json",
   "expected_sha256": {
     "evaluation_metadata": "69341c32c69ad6f8e4027e456d8a279d0231eeda7fd44ef17aa36f05b2c84ad8",
-    "home_quota": "de72384b6143c065269516db9c62924c1f49c850afa841a7ba755cea89b1df6c",
+    "home_quota": "d3eaf827fd9755da7cc606ef6bda5594e502ef28a148d088b60c8ca4a55a4da0",
     "source_codes": "8628997208dc3db459eeb5a4ff6577877624ea4d37ad6e8df33755dd4ea9e2ae",
     "source_grid": "7088e20f8d3ffee0062182358efe5ecde696a1c0363a08c7c451dfa49cd59c6a",
     "target_grid": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d",

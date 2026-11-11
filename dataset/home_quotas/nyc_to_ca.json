@@ -211284,10 +211284,17 @@
     0
   ],
   "provenance": {
-    "home_user_count": 4113,
-    "original_assignment_sha256": "61cbf138e8cda7dffdc0cdc090fce59f80dc24bbffd91ffabe598c64758f7c86",
+    "dataset": "GHS-POP",
+    "population_layer": "residential",
+    "population_year": 2010,
+    "provenance_basis": "repository_maintainer_confirmation",
+    "quota_total": 4113,
+    "release": "R2023A",
+    "source_url": "https://human-settlement.emergency.copernicus.eu/ghs_pop2023.php",
+    "target_checkins_used": false,
+    "target_city": "ca",
     "target_distances_used": false,
     "target_test_used": false
   },
-  "schema": "target_train_home_quota_v1"
+  "schema": "ghs_pop_home_quota_v1"
 }

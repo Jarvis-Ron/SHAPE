@@ -3,6 +3,9 @@
 The released protocol is `equal_complete_users_v1` for all four directions.
 Generation first produces every eligible source user's transferred schedule for
 each of seeds 42–46. Target test users are not used to construct those schedules.
+Home allocation uses the public GHS-POP R2023A 2010 residential population
+quotas in `dataset/home_quotas/`. Target check-ins enter only verification and
+evaluation; the equal-user evaluation budget does not set the generation quota.
 
 Evaluation retains days with at least two events. Eligible users have at least
 one such day. For each direction, the user budget is the smaller of the

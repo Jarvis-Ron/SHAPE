@@ -16,16 +16,16 @@ from SHAPE.stage3.tasks import FIXED_VARIANT
 from SHAPE.stage3.group_index import load_v4_transport_provenance, repair_group_index
 from SHAPE.stage3.landing_head import load_canonical_grid_attributes, load_landing_runtime
 from SHAPE.stage3.sampler import _distance_row_km, attraction_distribution
-from SHAPE.stage3.source_semantics import _load_codes_artifact, derive_projected_train_homes, fit_train_code_distance_semantics
-from SHAPE.stage3.prototype_semantics import ATTRACTION_SMOOTHING, PIECEWISE_DISTANCE_EDGES_KM, cohort_split_view, fit_train_code_attraction_semantics, fit_train_piecewise_distance_semantics
+from SHAPE.stage3.source_semantics import _load_codes_artifact, derive_projected_train_homes
+from SHAPE.stage3.prototype_semantics import ATTRACTION_SMOOTHING, cohort_split_view, fit_train_code_attraction_semantics
 from SHAPE.stage3.seeds import SELECTION_SEEDS
 from SHAPE.stage3.resident_index import _broadcast_user_values, _unique_user_values
-from SHAPE.stage3.rank_semantics import _target_home_probability, _train_transition_coordinates, quantile_remap_edges, fit_train_rank_distance_semantics, RANK_PIECEWISE_EDGES
+from SHAPE.stage3.rank_semantics import fit_train_rank_distance_semantics, RANK_PIECEWISE_EDGES
 from SHAPE.stage3.opportunity_rank import SpatialRankIndex, static_poi_weights, fit_personal_profiles
 from SHAPE.stage3.context_memory import _exact_nearest_indices, _percentile_ranks, context_quota_home_assignment, derive_familiar_location_capacity, map_marginal_rescaled_attraction, validate_interleaved_split_chronology
 from SHAPE.stage3.static_features import _load_raw_table
 from SHAPE.stage3.grid_projection import _project_nominal_ids_to_vocabulary
-from SHAPE.stage3.reference import target_train_distances, target_train_homes
+from SHAPE.stage3.home_quota import quota_probability
 
 
 def exact_nearest_rows(centers, origin, count, latitude_order=None):
@@ -103,20 +103,6 @@ def build_source_payloads(cohort):
     return payloads
 
 
-def quota_probability(quota, vocabulary):
-    """Accept a population histogram, never individual target trajectories."""
-    if set(quota) != {"schema", "grid_ids", "home_counts", "provenance"} \
-            or quota["schema"] != "target_train_home_quota_v1":
-        raise ValueError("aggregate home quota schema changed")
-    ids = np.asarray(quota["grid_ids"], dtype=np.int64)
-    counts = np.asarray(quota["home_counts"], dtype=np.float64)
-    if not np.array_equal(ids, vocabulary) or counts.shape != ids.shape \
-            or not np.isfinite(counts).all() or np.any(counts < 0) \
-            or np.any(counts != np.floor(counts)) or counts.sum() <= 0:
-        raise ValueError("invalid aggregate home quota")
-    return counts / counts.sum()
-
-
 def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
                              target_cohort, target_grid_csv, devices, *,
                              verify_release=True, progress=lambda text: None,
@@ -124,16 +110,20 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
                              rank_cache_rows=4096, sampling_seeds=SELECTION_SEEDS,
                              target_home_quota=None, learned_landing_checkpoint=None,
                              learned_context_checkpoint=None):
-    if target_home_quota is not None and (
-            target_reference is not None or target_cohort is not None
-            or personal_scale is None):
-        raise ValueError("quota-only generation rejects target checkins/cohort and distance calibration")
+    """Build Stage 3 with public population quotas and source-only behavior.
+
+    The target-reference slots are retained to reject obsolete callers explicitly;
+    no target trajectory or trajectory-derived statistic can enter generation.
+    """
+    if target_home_quota is None:
+        raise ValueError('Stage 3 requires a GHS-POP home quota from dataset/home_quotas')
+    if target_reference is not None or target_cohort is not None:
+        raise ValueError('Public-population quota generation rejects target checkins/cohort')
     sampling_seeds = tuple(sampling_seeds)
     if not sampling_seeds or len(set(sampling_seeds)) != len(sampling_seeds) \
             or any(type(seed) is not int or seed < 0 for seed in sampling_seeds):
         raise ValueError("sampling seeds must be distinct nonnegative integers")
-    rank_only = personal_scale is not None
-    if rank_only and personal_scale != FIXED_VARIANT:
+    if personal_scale != FIXED_VARIANT:
         raise ValueError("Only the fixed opportunity-rank variant without Pareto distance cost is supported")
     source_reference = _load_codes_artifact(source["reference_codes"])
     require_current_tokenizer_training(source_reference)
@@ -155,7 +145,7 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
     if not np.array_equal(fitted_source_ids, source_ids):
         # Historical CA heads use a source-training vocabulary. The new rank
         # geometry includes the complete static map without changing the head.
-        if source_city != "ca" or not rank_only or not len(fitted_source_ids) \
+        if source_city != "ca" or not len(fitted_source_ids) \
                 or not np.isin(fitted_source_ids, source_ids).all():
             raise RuntimeError("frozen landing source grid vocabulary is incompatible")
     if len(target_ids) != len(target_static) or not np.array_equal(target_ids, target_static.grid_ids):
@@ -168,34 +158,18 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         transport_provenance=load_v4_transport_provenance(target_grid_csv, target_ids))
     source_projected, source_projection = _project_nominal_ids_to_vocabulary(
         source_reference["grid_id"], source_ids, source_static.spec)
-    if target_home_quota is None:
-        target_projected, target_projection = _project_nominal_ids_to_vocabulary(
-            target_reference["grid_id"], target_ids, target_static.spec)
-        if rank_only:
-            if not np.all(np.asarray(target_reference["event_splits"]) == "train"):
-                raise ValueError("personal-scale runtime accepts target train homes only; no target test locations")
-        else:
-            target_cohort["real_grid"] = target_projected[target_cohort["event_indices"]]
-    else:
-        target_projection = {"computed": False, "input": "aggregate_home_quota_only"}
+    target_projection = {"computed": False, "input": "public_population_home_quota"}
     source_homes, source_home_audit = derive_projected_train_homes(
         source_reference, source_projected, source_cohort["users"])
     source_users, unique_source_homes = _unique_user_values(source_cohort["users"], source_homes)
-    if target_home_quota is None:
-        target_homes, target_home_audit = target_train_homes(
-            target_reference, target_projected, target_cohort["users"])
-        target_home_audit["fit_split"] = target_city + "_day_split_train_only"
-        _, unique_target_homes = _unique_user_values(target_cohort["users"], target_homes)
-        probability = _target_home_probability(unique_target_homes, target_ids)
-    else:
-        probability = quota_probability(target_home_quota, target_ids)
-        target_home_audit = {
-            "contract": target_home_quota["schema"],
-            "fit_split": target_city + "_day_split_train_only",
-            "input": "aggregate_home_counts",
-            "generation_received_target_person_ids": False,
-            "generation_received_target_checkins": False,
-        }
+    probability = quota_probability(target_home_quota, target_ids, target_city=target_city)
+    target_home_audit = {
+        "contract": target_home_quota["schema"],
+        "input": "public_population_home_quota",
+        "provenance": dict(target_home_quota["provenance"]),
+        "generation_received_target_person_ids": False,
+        "generation_received_target_checkins": False,
+    }
     context_weights,context_values,context_audit=None,None,None
     if learned_context_checkpoint is None:
         progress("building exact 25-neighbor H contexts and Hamilton home quotas")
@@ -204,7 +178,7 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         target_context, target_context_audit = selected_home_context(
             target_raw, target_group, target_centers, np.flatnonzero(probability > 0))
     else:
-        if learned_landing_checkpoint is None or not rank_only:
+        if learned_landing_checkpoint is None:
             raise ValueError("learned context requires learned rank landing")
         from SHAPE.stage3.learned_context import load_context, context_inputs
         from SHAPE.stage3.landing_head import apply_pooled_quantiles
@@ -235,48 +209,30 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
             seed, source_ids, target_ids, context_weights=context_weights)
         assignments[seed] = _broadcast_user_values(source_cohort["users"], source_users, homes)
         home_audits[seed] = {**audit, "target_city": target_city,
-                            "home_quota_source": target_city + "_day_split_train_only"}
+                            "home_quota_source": "GHS-POP R2023A 2010 residential population"}
 
-    profiles, target_rank, weights_audit = None, None, {}
-    if rank_only:
-        progress("fitting source-train opportunity ranks and personal profiles; no target distance statistics")
-        source_weights, source_weight_audit = static_poi_weights(source["grid_csv"], source_ids)
-        target_weights, target_weight_audit = static_poi_weights(target_grid_csv, target_ids)
-        if not personal_scale.get("weighted_rank", True):
-            source_weights, target_weights = None, None
-        from SHAPE.stage3.opportunity_rank import SpatialRankBinIndex
-        source_rank = SpatialRankIndex(source_centers, source_weights, cache_rows=8192)
-        target_rank = SpatialRankBinIndex(target_centers, target_weights,
-                                      cache_rows=rank_cache_rows,final_edge=RANK_PIECEWISE_EDGES[-2])
-        source_piecewise = fit_train_rank_distance_semantics(
-            source_reference, source_projected, source_centers, source_ids,
-            weights=source_weights, rank_index=source_rank)
-        profiles = fit_personal_profiles(source_reference, source_projected,
-            source_centers, source_ids, rank_index=source_rank)
-        edges = RANK_PIECEWISE_EDGES
-        rescale_audit = {"computed": False, "target_distance_quantiles_read": False}
-        weights_audit = {"source": source_weight_audit, "target": target_weight_audit,
-                         "weighted_rank": personal_scale.get("weighted_rank", True)}
-    else:
-        progress("applying source semantics and target-train distance quantile rescale")
-        source_point = fit_train_code_distance_semantics(
-            source_reference, source_projected, source_centers, source_ids)
-        source_piecewise = fit_train_piecewise_distance_semantics(
-            source_reference, source_projected, source_centers, source_ids, source_point)
-        source_distances = _train_transition_coordinates(
-            source_reference, source_projected, source_centers, source_ids)
-        target_distances = target_train_distances(
-            target_reference, target_projected, target_centers, target_ids)
-        edges, rescale_audit = quantile_remap_edges(
-            PIECEWISE_DISTANCE_EDGES_KM, source_distances, target_distances)
+    progress("fitting source-train opportunity ranks and personal profiles; no target distance statistics")
+    source_weights, source_weight_audit = static_poi_weights(source["grid_csv"], source_ids)
+    target_weights, target_weight_audit = static_poi_weights(target_grid_csv, target_ids)
+    from SHAPE.stage3.opportunity_rank import SpatialRankBinIndex
+    source_rank = SpatialRankIndex(source_centers, source_weights, cache_rows=8192)
+    target_rank = SpatialRankBinIndex(target_centers, target_weights,
+                                  cache_rows=rank_cache_rows,final_edge=RANK_PIECEWISE_EDGES[-2])
+    source_piecewise = fit_train_rank_distance_semantics(
+        source_reference, source_projected, source_centers, source_ids,
+        weights=source_weights, rank_index=source_rank)
+    profiles = fit_personal_profiles(source_reference, source_projected,
+        source_centers, source_ids, rank_index=source_rank)
+    edges = RANK_PIECEWISE_EDGES
+    rescale_audit = {"computed": False, "target_distance_quantiles_read": False}
+    weights_audit = {"source": source_weight_audit, "target": target_weight_audit,
+                     "weighted_rank": True}
     source_roles = fit_train_code_attraction_semantics(
         source_reference, source_projected, source_raw, source_ids,
         residential_grid_table=source_group)
     attraction, attraction_audit = map_marginal_rescaled_attraction(source_roles, target_raw, target_group)
     learned_values, learned_audit = None, None
     if learned_landing_checkpoint is not None:
-        if not rank_only:
-            raise ValueError("learned landing supports only opportunity-rank transfer")
         from SHAPE.stage3.learned_landing import load_learned_landing, attraction_inputs
         from SHAPE.stage3.contracts import sha256_file
         learned, learned_state = load_learned_landing(learned_landing_checkpoint,
@@ -345,10 +301,10 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
         "source_context_homes": assignments, "source_familiar_capacity": capacity,
         "transferred_attraction_rescaled": attraction,
         "personal_profiles": profiles, "personal_scale": personal_scale,
-        "scale_specs": {"rank" if rank_only else "rescale": {
-            "semantics": source_piecewise, "coordinate": "spatial_rank" if rank_only else "physical_km",
+        "scale_specs": {"rank": {
+            "semantics": source_piecewise, "coordinate": "spatial_rank",
             "coarse_edges": edges[[0, 4, 8, 12, 16]], "piecewise_edges": edges,
-            "contract": "source_train_opportunity_rank_v1" if rank_only else "NYC_mass_CA_train_population_quantile_edges",
+            "contract": "source_train_opportunity_rank_v1",
         }},
         "provenance": {
             "sampling_seeds": sampling_seeds,
@@ -372,12 +328,13 @@ def prepare_transfer_runtime(source, closeout, source_cohort, target_reference,
             "group_repairs": {source_city: source_repair, target_city: target_repair},
             "target_home_probability": probability,
             "target_rank_matrix_allocated": False,
-            "target_rank_cache_rows": target_rank.cache_rows if rank_only else None,
+            "target_rank_cache_rows": target_rank.cache_rows,
             "target_true_codes_or_reconstructed_H_used": False,
-            "target_train_statistics": (["population_home_marginal"] if rank_only
-                                         else ["population_home_marginal", "jump_distance_quantiles"]),
-            "target_test_locations_read_by_generation": not rank_only,
-            "target_train_distance_quantiles_used_by_distance_scale": not rank_only,
-            "target_aggregate_quota_only": target_home_quota is not None,
+            "target_train_statistics": [],
+            "target_public_population_statistics": ["residential_home_quota"],
+            "target_checkins_used_by_generation": False,
+            "target_test_locations_read_by_generation": False,
+            "target_train_distance_quantiles_used_by_distance_scale": False,
+            "target_aggregate_quota_only": True,
         },
     }

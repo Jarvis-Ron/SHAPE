@@ -12,6 +12,7 @@ from SHAPE.stage3.contracts import require_current_tokenizer_training, sha256_fi
 from SHAPE.stage3.learned_context import load_context
 from SHAPE.stage3.learned_landing import load_learned_landing
 from SHAPE.stage3.metrics import primary_subset
+from SHAPE.stage3.home_quota import load_home_quota, quota_probability
 
 
 def verify_model(spec, tokenizer_hash):
@@ -40,7 +41,9 @@ def verify(path):
         tokenizer_hash = str(a['tokenizer_sha256'].item())
     model_report = verify_model(spec, tokenizer_hash) if has_model else {}
     _, payloads = load_source(spec)
-    _, _, target, _ = load_reference(spec)
+    _, _, target, target_static = load_reference(spec)
+    quota = load_home_quota(spec['home_quota'], target_city=spec['target_city'])
+    quota_probability(quota, target_static.grid_ids, target_city=spec['target_city'])
     source = payloads['source_test_real']
     source_sub = primary_subset(source, source['features'][:, 0])
     target_sub = primary_subset(target, target['values'])
@@ -49,7 +52,9 @@ def verify(path):
     metadata = json.loads(Path(spec['evaluation_metadata']).read_text())
     validate_plans(np.unique(source_sub['users']), np.unique(target_sub['users']), sp, tp, metadata)
     result = dict(direction=spec['direction'], status='verified', users_per_side=sp.shape[1],
-                  scope='model_and_data' if has_model else 'data', **model_report)
+                  scope='model_and_data' if has_model else 'data',
+                  home_quota_schema=quota['schema'], home_quota_provenance=quota['provenance'],
+                  **model_report)
     print(json.dumps(result), flush=True)
     return result
 

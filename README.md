@@ -69,11 +69,14 @@ Use `--mode reproduce` with the same `--spec` to generate and evaluate together.
   that the model never uses geometry.
 
 Generation preserves source times and activity categories. Target static maps
-and an **aggregate target training-home quota** are allowed inputs. The quota
-is derived from target training check-ins and is supplied as a generation
-condition; it is not inferred from static residential attributes alone. Target
-test trajectories are used only for evaluation. This release therefore does
-not represent an unconditional, target-trajectory-free setting.
+and **public population home quotas derived from the GHS-POP R2023A 2010
+residential population layer** are allowed inputs. The precomputed quotas are
+included in `dataset/home_quotas/` and loaded by Stage 3 through each
+configuration's `home_quota` path. They provide a static population prior, not
+statistics derived from target check-ins. Target trajectories are used only for
+evaluation, never for training, checkpoint selection, calibration or generation.
+This is zero-shot source-schedule transfer with target static-map and public
+population inputs; generation remains conditioned on source schedules.
 
 Evaluation matches the number of complete eligible users on each side for 200
 fixed selections. It does not match day or event counts. Each seed is scored
@@ -87,7 +90,7 @@ or five times as many independent people.
 |---|---|
 | `SHAPE/` | Current three-stage model, training and evaluation code |
 | `configs/` | Four training-data and evaluation configurations |
-| `dataset/` | Static maps, source data, processed reference data, Home quotas and evaluation selections |
+| `dataset/` | Static maps, source data, evaluation references, GHS-POP R2023A 2010 Home quotas and evaluation selections |
 | `tests/` | Model and release verification |
 
 NYC-source directions share the same prepared source events. The two CA-source

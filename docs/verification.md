@@ -3,7 +3,9 @@
 Run `python run_full_pipeline.py --mode verify --direction all` after cloning.
 The command validates data file hashes, the source-code training contract, and
 the exact ordered user populations for the evaluation selections. It reports
-`scope: data` for the checked-in configurations.
+`scope: data` for the checked-in configurations. It also validates the
+GHS-POP R2023A 2010 residential population quota schema, declared provenance,
+target city, complete static-grid alignment and positive integer quota mass.
 
 After training, validate the resulting model and data together with:
 
@@ -17,8 +19,11 @@ report has `scope: model_and_data` and includes their parameter counts.
 
 Run `python -m pytest -q` for numerical model tests and release-interface tests.
 These cover disabled auxiliary supervision, real checkpoint/export/head I/O,
-rank-bin acceleration, learned context gradients, Home quota preservation,
-source-only training inputs and the evaluation sampling unit.
+rank-bin acceleration, learned context gradients, public population Home quota
+preservation, source-only training inputs and the evaluation sampling unit.
+Generation tests check that the configured quota reaches Stage 3 and that no
+target reference or evaluation-plan file is read. The production-runtime smoke
+test uses the bundled Paris quota and checks the resulting Hamilton capacities.
 
 Source statistics remain bound to the exact code, map and head files. For
 attraction statistics, the loader also accepts an exact fingerprint of the

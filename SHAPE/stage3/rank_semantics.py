@@ -96,73 +96,6 @@ def _subset_sequences(offsets, users, minute, values, mask):
     }
 
 
-def _train_transition_coordinates(artifact, projected_grid, centers, grid_ids,
-                                  coordinate="physical_km"):
-    artifact = _load_codes_artifact(artifact)
-    offsets = np.asarray(artifact["day_offsets"], dtype=np.int64)
-    splits = np.asarray(artifact["day_splits"], dtype=np.str_)
-    projected_grid = np.asarray(projected_grid, dtype=np.int64)
-    vocabulary = np.asarray(grid_ids, dtype=np.int64)
-    positions = np.searchsorted(vocabulary, projected_grid)
-    safe = np.clip(positions, 0, max(0, len(vocabulary) - 1))
-    if not np.all(vocabulary[safe] == projected_grid):
-        raise RuntimeError("P3-E1 projected grid is outside its vocabulary")
-    ranks = None if coordinate == "physical_km" else spatial_rank_table(centers)
-    output = []
-    for split, start, end in zip(splits, offsets[:-1], offsets[1:]):
-        if str(split) != "train":
-            continue
-        for event in range(int(start) + 1, int(end)):
-            left, right = positions[event - 1], positions[event]
-            if coordinate == "physical_km":
-                value = _distance_row_km(
-                    np.asarray(centers)[left], np.asarray(centers)[[right]]
-                )[0]
-            elif coordinate == "spatial_rank":
-                value = ranks[left, right]
-            else:
-                raise ValueError("unknown transition coordinate")
-            output.append(float(value))
-    if not output:
-        raise RuntimeError("P3-E1 needs train within-day transitions")
-    return np.asarray(output, dtype=np.float64)
-
-
-def quantile_remap_edges(source_edges, source_values, target_values):
-    """Map finite source edges through source CDF into target quantiles."""
-    source_edges = np.asarray(source_edges, dtype=np.float64)
-    source_values = np.asarray(source_values, dtype=np.float64)
-    target_values = np.asarray(target_values, dtype=np.float64)
-    if source_edges[0] != 0 or not np.isposinf(source_edges[-1]) \
-            or not len(source_values) or not len(target_values) \
-            or np.any(source_values < 0) or np.any(target_values < 0):
-        raise ValueError("invalid quantile-remap inputs")
-    mapped = [0.0]
-    quantiles = [0.0]
-    for edge in source_edges[1:-1]:
-        quantile = float(np.mean(source_values <= float(edge)))
-        value = float(np.quantile(target_values, quantile))
-        value = max(value, mapped[-1] + 1e-6)
-        mapped.append(value)
-        quantiles.append(quantile)
-    mapped.append(np.inf)
-    quantiles.append(1.0)
-    return np.asarray(mapped, dtype=np.float64), {
-        "contract": (
-            "source_train_edge_CDF_quantile_to_target_train_population_jump_"
-            "distance_quantile_v1"
-        ),
-        "source_transition_count": int(len(source_values)),
-        "target_transition_count": int(len(target_values)),
-        "source_edges": ["inf" if np.isposinf(x) else float(x)
-                         for x in source_edges],
-        "source_cdf_quantiles": quantiles,
-        "target_edges": ["inf" if np.isposinf(x) else float(x)
-                         for x in mapped],
-        "uses_target_heldout": False,
-    }
-
-
 def fit_train_rank_distance_semantics(
         reference_codes, projected_grid, centers, grid_ids, codebook_size=64,
         *, weights=None, rank_index=None):
@@ -253,17 +186,6 @@ def fit_train_rank_distance_semantics(
             payload, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")).hexdigest(),
     }
-
-
-def _target_home_probability(unique_homes, grid_ids):
-    vocabulary = np.asarray(grid_ids, dtype=np.int64)
-    homes = np.asarray(unique_homes, dtype=np.int64)
-    positions = np.searchsorted(vocabulary, homes)
-    safe = np.clip(positions, 0, max(0, len(vocabulary) - 1))
-    if not np.all(vocabulary[safe] == homes):
-        raise RuntimeError("Paris train home is outside target vocabulary")
-    counts = np.bincount(positions, minlength=len(vocabulary)).astype(np.float64)
-    return counts / counts.sum()
 
 
 def _payload_mixture(payload, scale_mode, runtime):

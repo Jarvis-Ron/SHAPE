@@ -4,8 +4,7 @@ Only dependencies of the retained SHAPE stages are included. See docs/code-map.m
 """
 
 from __future__ import annotations
-from collections import Counter, defaultdict
-import hashlib
+from collections import defaultdict
 import json
 from pathlib import Path
 import numpy as np
@@ -73,6 +72,7 @@ def prepare_ca_reference(raw_files, grid_csv, output, *, seed=42,
         "prepared_day_count": len(days),
         "prepared_event_count": int(lengths.sum()),
         "active_grid_filter_used": False,
+        "purpose": "evaluation_only",
         "target_tokenizer_or_latent_required_for_X1": False,
         "reference_true_codes_created": False,
         "duplicates_policy": "retain_like_original_preprocessing",
@@ -155,46 +155,3 @@ def reference_payload(cohort, split="test"):
             "minute": cohort["minute"][events],
         },
     }
-
-
-def target_train_homes(artifact, projected_grid, sequence_users):
-    """The original projected train mode, with count-desc/grid-ID-asc ties."""
-    counts = defaultdict(Counter)
-    for user, split, grid in zip(artifact["event_user_ids"],
-                                 artifact["event_splits"], projected_grid):
-        if str(split) == "train":
-            counts[str(user)][int(grid)] += 1
-    mapping = {}
-    for user in map(str, sequence_users):
-        ranking = sorted(counts[user].items(), key=lambda item: (-item[1], item[0]))
-        if not ranking:
-            raise RuntimeError("target user has no train home: " + user)
-        mapping[user] = ranking[0][0]
-    return np.asarray([mapping[str(user)] for user in sequence_users], dtype=np.int64), {
-        "contract": "projected_train_mode_count_desc_grid_id_asc_v1",
-        "fit_split": "CA_day_split_train_only",
-        "unique_user_count": len(mapping),
-        "user_home_sha256": hashlib.sha256(json.dumps(
-            sorted(mapping.items()), separators=(",", ":")
-        ).encode()).hexdigest(),
-    }
-
-
-def target_train_distances(artifact, projected_grid, centers, vocabulary):
-    """Physical same-day train transitions; target code labels are unnecessary."""
-    positions = np.searchsorted(vocabulary, projected_grid)
-    if np.any(positions >= len(vocabulary)) \
-            or not np.array_equal(vocabulary[positions], projected_grid):
-        raise ValueError("target train distances left the static vocabulary")
-    offsets = np.asarray(artifact["day_offsets"], dtype=np.int64)
-    pieces = [np.arange(start + 1, end) for split, start, end in zip(
-        artifact["day_splits"], offsets[:-1], offsets[1:]
-    ) if str(split) == "train" and end - start >= 2]
-    if not pieces:
-        raise RuntimeError("CA train has no within-day transitions for rescale")
-    right = np.concatenate(pieces)
-    left_points, right_points = centers[positions[right - 1]], centers[positions[right]]
-    north = (right_points[:, 0] - left_points[:, 0]) * 111.32
-    mean_lat = np.radians(0.5 * (left_points[:, 0] + right_points[:, 0]))
-    east = (right_points[:, 1] - left_points[:, 1]) * 111.32 * np.cos(mean_lat)
-    return np.sqrt(north * north + east * east)

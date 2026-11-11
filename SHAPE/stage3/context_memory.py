@@ -133,7 +133,7 @@ def context_quota_home_assignment(
     ])
     return target_ids[selected], {
         "contract": (
-            "exact_Paris_train_home_Hamilton_quota_then_static_residential_"
+            "exact_public_population_home_Hamilton_quota_then_static_residential_"
             "percentile_and_local_POI_context_match_v1"
         ),
         "seed": int(seed),

@@ -1,5 +1,6 @@
 """Public release bindings, source-only training, and population matching."""
 from pathlib import Path
+import json
 
 import numpy as np
 import pytest
@@ -7,7 +8,7 @@ import pytest
 from SHAPE.pipeline import DIRECTIONS, ROOT, main as pipeline_main, train, training_plan
 from SHAPE.reproduce import MODEL_INPUTS, check_inputs, generate, read_spec
 from SHAPE.evaluation.matched_users import summarize, validate_plans, user_hash, take_users
-from SHAPE.stage3.runtime import quota_probability
+from SHAPE.stage3.home_quota import GHS_POP_PROVENANCE, HOME_QUOTA_SCHEMA, load_home_quota, quota_probability
 from SHAPE.stage3.contracts import sha256_file
 from SHAPE.verify import verify
 
@@ -18,6 +19,8 @@ def test_bundled_data_and_population_bindings(direction):
     assert report['scope'] == 'data'
     assert 'learned_landing_parameters' not in report
     assert report['users_per_side'] == (1070 if direction.startswith('nyc') else 1032)
+    assert report['home_quota_schema'] == HOME_QUOTA_SCHEMA
+    assert report['home_quota_provenance']['target_checkins_used'] is False
 
 
 def bind_model_files(spec, tmp_path):
@@ -142,10 +145,77 @@ def test_training_graph_fits_both_learned_components_on_source_only(direction, t
     assert [c[4] for c in fresh[:3]] == ['train-grid','extract-grid','prepare-events']
 
 
-def test_quota_api_accepts_only_an_aligned_population_histogram():
-    quota = dict(schema='target_train_home_quota_v1', grid_ids=[2,4], home_counts=[1,3], provenance={})
+def test_quota_api_accepts_only_aligned_public_population_quotas():
+    quota = dict(schema=HOME_QUOTA_SCHEMA, grid_ids=[2,4], home_counts=[1,3],
+                 provenance=dict(GHS_POP_PROVENANCE, target_city='paris', quota_total=4))
     np.testing.assert_array_equal(quota_probability(quota, np.array([2,4])), [.25,.75])
     for changed in [dict(quota, individual_trajectories=[]), dict(quota, home_counts=[1.5,2.5]),
-                    dict(quota, grid_ids=[4,2]), dict(quota, home_counts=[0,0])]:
+                    dict(quota, grid_ids=[4,2]), dict(quota, grid_ids=[2.5,4.5]),
+                    dict(quota, home_counts=[0,0]), dict(quota, home_counts=[1,-1]),
+                    dict(quota, home_counts=[1,float('nan')]), dict(quota, provenance={}),
+                    dict(quota, schema='unsupported_quota')]:
         with pytest.raises(ValueError):
             quota_probability(changed, np.array([2,4]))
+    for key, value in [('dataset','other'), ('release','R2022A'), ('population_year',2020),
+                       ('population_layer','non-residential'), ('target_checkins_used',True),
+                       ('quota_total',5), ('target_city','nyc')]:
+        changed=dict(quota,provenance=dict(quota['provenance'],**{key:value}))
+        with pytest.raises(ValueError):
+            quota_probability(changed,np.array([2,4]),target_city='paris')
+
+
+@pytest.mark.parametrize('direction', DIRECTIONS)
+def test_generation_passes_bundled_quota_to_stage3_without_target_reference(direction, tmp_path, monkeypatch):
+    """Exercise the public entry point and real file reads; model I/O is tested separately."""
+    from SHAPE import reproduce
+    spec=read_spec(ROOT/'configs'/f'{direction}.json',require_fitted=False)
+    bind_model_files(spec,tmp_path)
+    quota_path=ROOT/'dataset/home_quotas'/f'{direction}.json'
+    assert Path(spec['home_quota'])==quota_path
+    quota=load_home_quota(quota_path,target_city=spec['target_city'])
+    for key in ('target_reference','user_selection','evaluation_metadata'):
+        spec[key]=str(tmp_path/'must-not-be-read'/key)
+    payloads={'source_train_real':{},'source_test_real':{}}
+    monkeypatch.setattr(reproduce,'load_source',lambda spec: ({},payloads))
+    entered=[]
+
+    def prepare(source,closeout,cohort,reference,target_cohort,grid,devices,**kwargs):
+        assert reference is None and target_cohort is None
+        assert grid==spec['target_grid']
+        assert kwargs['target_home_quota']==quota
+        entered.append(kwargs['target_home_quota'])
+        counts=np.asarray(quota['home_counts'],dtype=float)
+        return dict(provenance={'target_home_probability':counts/counts.sum()},
+                    source_context_homes={seed:np.array([quota['grid_ids'][0]]) for seed in spec['seeds']})
+
+    monkeypatch.setattr(reproduce,'prepare_transfer_runtime',prepare)
+    monkeypatch.setattr(reproduce,'_run_e2_tasks',lambda *args,**kwargs:
+        [dict(sampling_seed=seed,prediction=np.array([quota['grid_ids'][0]])) for seed in spec['seeds']])
+    output=tmp_path/'generation'
+    prediction=generate(spec,output,'cpu')
+    assert prediction.is_file() and len(entered)==1
+    manifest=json.loads((output/'manifest.json').read_text())
+    runtime=json.loads((output/'runtime.json').read_text())
+    assert manifest['target_checkin_generation_use']=='none'
+    assert manifest['target_reference_read_by_generation'] is False
+    assert manifest['home_quota_input']==runtime['home_quota_input']
+    assert manifest['home_quota_input']['sha256']==sha256_file(quota_path)
+    assert manifest['home_quota_input']['provenance']==quota['provenance']
+    with np.load(output/'home_assignments.npz') as archive:
+        counts=np.asarray(quota['home_counts'],dtype=float)
+        np.testing.assert_array_equal(archive['probability'],counts/counts.sum())
+
+
+def test_changed_quota_file_is_rejected_before_generation(tmp_path):
+    spec=read_spec(ROOT/'configs/nyc_to_paris.json',require_fitted=False)
+    bind_model_files(spec,tmp_path)
+    path=tmp_path/'quota.json'
+    quota=json.loads(Path(spec['home_quota']).read_text())
+    quota['home_counts'][0]+=1
+    quota['provenance']['quota_total']+=1
+    path.write_text(json.dumps(quota))
+    spec['home_quota']=str(path)
+    output=tmp_path/'generation'
+    with pytest.raises(ValueError,match='Input checksum mismatch: home_quota'):
+        generate(spec,output,'cpu')
+    assert not output.exists()

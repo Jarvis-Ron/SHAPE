@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from SHAPE.stage3.run import train_home_reference, config_id
+from SHAPE.stage3.run import config_id
+from SHAPE.stage3.runtime import prepare_transfer_runtime
 from SHAPE.stage3.tasks import FIXED_VARIANT, load_contract, make_x1_hra_tasks
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,15 +17,17 @@ def test_every_retained_module_imports():
         importlib.import_module('.'.join(path.relative_to(ROOT).with_suffix('').parts))
 
 
-def test_target_test_values_cannot_cross_home_boundary():
-    artifact=dict(grid_id=np.array([1,999,2]),event_user_ids=np.array(['a','a','b']),
-                  event_splits=np.array(['train','test','train']),codes=np.ones((3,3)))
-    before=train_home_reference(artifact)
-    artifact['grid_id'][1]=-100
-    after=train_home_reference(artifact)
-    assert set(before)=={'grid_id','event_user_ids','event_splits'}
-    for key in before:
-        np.testing.assert_array_equal(before[key],after[key])
+def test_stage3_requires_public_quota_without_target_trajectory_fallback():
+    with pytest.raises(ValueError, match='requires a GHS-POP home quota'):
+        prepare_transfer_runtime({}, {}, {}, None, None, None, ['cpu'],
+                                 personal_scale=dict(FIXED_VARIANT))
+    for reference, cohort in (({}, None), (None, {}), ({}, {})):
+        with pytest.raises(ValueError, match='rejects target checkins/cohort'):
+            prepare_transfer_runtime({}, {}, {}, reference, cohort, None, ['cpu'],
+                                     personal_scale=dict(FIXED_VARIANT), target_home_quota={})
+    with pytest.raises(ValueError, match='fixed opportunity-rank'):
+        prepare_transfer_runtime({}, {}, {}, None, None, None, ['cpu'],
+                                 target_home_quota={})
 
 
 def test_release_refuses_other_mechanisms_and_changed_contract(tmp_path):

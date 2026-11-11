@@ -124,21 +124,20 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
                                  vocabulary_policy='all_emitted')
     assert runtime is not None
     # Exercise the production Stage-3 boundary on the new tokenizer/landing pair.
-    # Target input is just a synthetic aggregate quota plus the static Paris map.
+    # Use the actual bundled public-population quota and static Paris map.
     from SHAPE.stage3.source_cohort import load_g0_cohort
     from SHAPE.stage3.runtime import build_source_payloads, prepare_transfer_runtime
     from SHAPE.stage3.context_memory import _run_e2_tasks
     from SHAPE.stage3.tasks import FIXED_VARIANT, load_contract, make_x1_hra_tasks
+    from SHAPE.stage3.home_quota import load_home_quota
+    from SHAPE.stage3.resident_index import _unique_user_values, proportional_integer_capacities
     cohort=load_g0_cohort(codes,{},None,require_complete_user_splits=True,reference_only=True)
     payloads=build_source_payloads(cohort)
     contract=load_contract()
     params=contract['frozen_landing']
     target_path=ROOT/'dataset/PARIS_grid_merged_features.csv'
     target=StaticGrid.load(target_path,city='paris')
-    counts=np.zeros(len(target.grid_ids),dtype=int)
-    counts[0]=4
-    quota=dict(schema='target_train_home_quota_v1',grid_ids=target.grid_ids.tolist(),
-               home_counts=counts.tolist(),provenance={'fixture':True})
+    quota=load_home_quota(ROOT/'dataset/home_quotas/nyc_to_paris.json', target_city='paris')
     source=dict(reference_codes=codes,checkpoint=landing,grid_csv=grid_path,
         binding={},arms={'D1A1_raw':{'parameters':{key:params[key] for key in
             ('selection_mode','selection_temperature','distance_mode','distance_tau',
@@ -149,7 +148,15 @@ def test_codes_export_and_source_landing_training_are_connected(tmp_path, monkey
     audit=transferred['provenance']
     assert audit['pareto_distance_cost'] is False
     assert audit['target_train_distance_quantiles_used_by_distance_scale'] is False
-    assert audit['target_train_statistics']==['population_home_marginal']
+    assert audit['target_train_statistics']==[]
+    assert audit['target_checkins_used_by_generation'] is False
+    assert audit['target_home']['provenance']==quota['provenance']
+    probability=np.asarray(quota['home_counts'],dtype=float)
+    probability/=probability.sum()
+    np.testing.assert_array_equal(audit['target_home_probability'],probability)
+    users, homes=_unique_user_values(cohort['users'],transferred['source_context_homes'][42])
+    realized=np.bincount(np.searchsorted(target.grid_ids,homes),minlength=len(target.grid_ids))
+    np.testing.assert_array_equal(realized,proportional_integer_capacities(probability,len(users)))
     tasks=make_x1_hra_tasks(payloads,contract)[:1]
     results=_run_e2_tasks(tasks,payloads,transferred,stage_label='rank-only-fixture',
         **{key:params[key] for key in ('landing_temperature','candidate_top_k',

@@ -18,9 +18,12 @@ stability settings remain specified choices. Trainable parameters can retain
 their initial values when source validation selects initialization.
 
 There is no additive absolute-distance penalty. Geographic ordering and
-feasibility still use geometry. Target static attributes and a supplied
-aggregate training-home quota are inference inputs. This is source-schedule
-transfer under those conditions, not unconditional learning of target activity
-schedules. No target test outcomes select parameters or checkpoints.
+feasibility still use geometry. Target static attributes and public Home quotas
+from the GHS-POP R2023A 2010 residential population layer are inference inputs.
+Stage 3 reads the precomputed quotas from `dataset/home_quotas/` and allocates
+Home slots in proportion to them. This is zero-shot source-schedule transfer
+conditioned on static maps and public population data. Target trajectories
+are used only for evaluation; they supply no Home quotas, training signals,
+calibration statistics or checkpoint-selection outcomes.
 
 See the two learned-component documents for objectives and fixed settings.

@@ -8,7 +8,7 @@
   "evaluation_metadata": "../dataset/evaluation/ca_to_paris.json",
   "expected_sha256": {
     "evaluation_metadata": "a18f431849ca6ff0259e7a6039afaccf78124d78f9fd402153a1a855044f128a",
-    "home_quota": "b679b411dfaf15b80bf6683795c1afa4430bf954d1c4a4f91aa791fd946e971d",
+    "home_quota": "50095be53d3122f6c1ecffda377b5c8c3a40147b97e0547321b8701f21de30f9",
     "source_codes": "786e23d8e81dc46ffe51787acec1df59181ceb854d41c81f932b4bb2301ab191",
     "source_grid": "3a056fc84d0d472e79d757143d1e3a1844770b1e80e8a1297779358cb18bb99d",
     "target_grid": "0a6697ab991193f630b84eb7682f73712d5e1f2a075e38aea76c1c89118667c1",

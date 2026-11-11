@@ -21,6 +21,19 @@ Select one of `nyc_to_ca`, `nyc_to_paris`, `ca_to_nyc`, `ca_to_paris`, or `all`.
 generation concurrency on the chosen device; it does not change model settings.
 Training runs synchronously and stops on the first failed command.
 
+Stage 3 loads the configuration's `home_quota` file from `dataset/home_quotas/`:
+the GHS-POP R2023A 2010 residential population quotas for that direction. The
+runner checks its SHA256, source metadata and target grid alignment, and records
+the file path, hash and provenance in `generation/runtime.json` and
+`generation/manifest.json`. Missing quotas or target-trajectory inputs are
+rejected; generation cannot reconstruct quotas from target check-ins.
+
+Older saved `fit/transfer.json` files may bind the previous quota metadata hash.
+To reuse existing model weights, update only their `home_quota` path and
+`expected_sha256.home_quota` to the corresponding checked-in configuration.
+The quota grid IDs and numeric weights are unchanged by this provenance
+correction; learned model bindings do not depend on quota-file metadata.
+
 For example, train once, then use the resulting specification for separate
 generation and evaluation:
 

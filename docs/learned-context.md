@@ -8,8 +8,11 @@ Both learned checkpoints are required by the public release runner.
 The new parameters are the residential density/diversity mix used in home
 contexts, continuous effective neighborhood size, relative residential/POI
 matching cost weight, separate initial home and anchor counts, and two ordered
-global quantile levels for landing attributes. Exact target home quotas and the
-Hamilton assignment algorithm remain constraints, not learned quantities.
+global quantile levels for landing attributes. The public Home quotas from the
+GHS-POP R2023A 2010 residential population layer (`dataset/home_quotas/`) and
+the Hamilton assignment algorithm remain constraints, not learned quantities.
+The residential context score matches users to quota slots; it does not estimate
+or replace the population quota, and uses no target check-ins.
 
 Home-context fitting uses source training-day Layer-0 code histograms grouped by
 source modal-home cell. A soft neighborhood distribution based on behavior JSD

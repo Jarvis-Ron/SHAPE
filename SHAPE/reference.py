@@ -1,4 +1,4 @@
-"""Prepare a target reference for home-quota extraction and evaluation only."""
+"""Prepare target reference trajectories for evaluation only."""
 import argparse
 from collections import defaultdict
 import json
@@ -54,7 +54,7 @@ def main(argv=None):
             raise ValueError('No target reference days')
         lengths = np.asarray([len(day[3]) for day in days], dtype=np.int64)
         receipt = dict(schema=REFERENCE_SCHEMA, city=args.city, seed=42, mapping=mapping,
-                       purpose='home_quota_and_evaluation_only', active_grid_filter_used=False)
+                       purpose='evaluation_only', active_grid_filter_used=False)
         arrays = dict(schema=np.asarray(REFERENCE_SCHEMA), source_city=np.asarray(args.city),
             metadata_json=np.asarray(json.dumps(receipt)), day_offsets=np.r_[0,np.cumsum(lengths)],
             day_user_ids=np.asarray([day[0] for day in days]),

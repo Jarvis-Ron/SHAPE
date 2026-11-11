@@ -14756,10 +14756,17 @@
     0
   ],
   "provenance": {
-    "home_user_count": 1083,
-    "original_assignment_sha256": "c173ce0bf8c805e92efa8cda7c3573d77570c63b4d47a2c95c31731e5a0c27e6",
+    "dataset": "GHS-POP",
+    "population_layer": "residential",
+    "population_year": 2010,
+    "provenance_basis": "repository_maintainer_confirmation",
+    "quota_total": 1083,
+    "release": "R2023A",
+    "source_url": "https://human-settlement.emergency.copernicus.eu/ghs_pop2023.php",
+    "target_checkins_used": false,
+    "target_city": "nyc",
     "target_distances_used": false,
     "target_test_used": false
   },
-  "schema": "target_train_home_quota_v1"
+  "schema": "ghs_pop_home_quota_v1"
 }
